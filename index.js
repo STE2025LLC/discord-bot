@@ -220,22 +220,28 @@ client.on('messageCreate', async (message) => {
                     userInfo.step = 2;
                     userData.set(userId, userInfo);
                     
+                    // **NO avisa de los 16 caracteres aquí**
                     await message.author.send({
-                        content: `✅ **Alliance: ${answer}**\n\n**Question 2/3:**\n**What is your in-game ID?**\n\n*(Maximum 16 characters)*`
+                        content: `✅ **Alliance: ${answer}**\n\n**Question 2/3:**\n**What is your in-game ID?**`
                     });
                 }
                 
                 else if (userInfo.step === 2) {
-                    if (!content || content.length < 2) {
-                        await message.author.send('❌ **Invalid ID!**\nPlease provide a valid in-game ID (minimum 2 characters)');
+                    // **VALIDACIÓN EXACTA: DEBE SER 16 CARACTERES**
+                    
+                    // Primero verificar si está vacío
+                    if (!content) {
+                        await message.author.send('❌ **Please provide your in-game ID.**');
                         return;
                     }
                     
-                    if (content.length > 16) {
-                        await message.author.send(`❌ **Game ID too long!**\nMaximum 16 characters allowed.\n\nYour ID has **${content.length}** characters.\nPlease provide a shorter Game ID.`);
+                    // **DEBE SER EXACTAMENTE 16 CARACTERES**
+                    if (content.length !== 16) {
+                        await message.author.send(`❌ **Invalid Game ID length!**\n\n**Your ID has ${content.length} characters.**\n**Required: EXACTLY 16 characters.**\n\nPlease provide a valid 16-character Game ID.`);
                         return;
                     }
                     
+                    // Validar que solo contenga caracteres válidos (números y letras)
                     if (!/^[a-zA-Z0-9]+$/.test(content)) {
                         await message.author.send('❌ **Invalid characters!**\nGame ID can only contain letters and numbers (no spaces or special characters).');
                         return;
