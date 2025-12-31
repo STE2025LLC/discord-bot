@@ -66,7 +66,7 @@ client.on('guildMemberAdd', async (member) => {
         
         if (welcomeChannel) {
             await welcomeChannel.send({
-                content: `**Hello!** 👋 <@${member.id}> Welcome to **${member.guild.name}**.\n\nPlease check your DMs to complete your registration and be able to see all the channels.`
+                content: `**Hello!** 👋 <@${member.id}> Welcome to **${member.guild.name}**.\n\nPlease check your DMs to complete registration and be able to see all channels.`
             });
         }
         
@@ -84,7 +84,7 @@ client.on('guildMemberAdd', async (member) => {
     }
 });
 
-// FUNCIÓN para guardar en "registers"
+// FUNCIÓN para guardar en "registers" - AHORA CON MENCIÓN
 async function saveToRegistersChannel(guild, userInfo, action = 'NEW REGISTRATION') {
     console.log(`\n💾 Saving to registers channel (${action})...`);
     
@@ -112,23 +112,23 @@ async function saveToRegistersChannel(guild, userInfo, action = 'NEW REGISTRATIO
         const now = new Date();
         const utcFormatted = now.toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
         
-        // Mensaje de texto formateado
+        // **MENSAJE DE TEXTO CON MENCIÓN AL USUARIO**
         const registerMessage = `
 📝 **${action}** 📝
 
-👤 **Discord User:** ${userInfo.discordTag}
-🆔 **Discord ID:** ${userInfo.discordId}
-🛡️ **Alliance:** ${userInfo.alliance}
-🎮 **Game ID:** ${userInfo.gameId}
-🏷️ **In-Game Nickname:** ${userInfo.nickname}
-📅 **Date (UTC):** ${utcFormatted}
+**User:** <@${userInfo.discordId}> (${userInfo.discordTag})
+**Discord ID:** \`${userInfo.discordId}\`
+**Alliance:** **${userInfo.alliance}**
+**Game ID:** \`${userInfo.gameId}\`
+**In-Game Nickname:** \`${userInfo.nickname}\`
+**Date (UTC):** ${utcFormatted}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         `.trim();
         
         console.log(`📤 Sending to #${registerChannel.name}...`);
         await registerChannel.send(registerMessage);
         
-        console.log(`✅ ${action} saved successfully`);
+        console.log(`✅ ${action} saved successfully with user mention`);
         return true;
         
     } catch (error) {
@@ -368,7 +368,7 @@ client.on('messageCreate', async (message) => {
                         console.error('Verification error:', verifyError.message);
                     }
                     
-                    // GUARDAR EN REGISTROS
+                    // GUARDAR EN REGISTROS (CON MENCIÓN)
                     try {
                         const guild = client.guilds.cache.first();
                         if (guild) {
@@ -401,7 +401,7 @@ client.on('messageCreate', async (message) => {
                     confirmationMessage += `📢 **Important:**\n`;
                     confirmationMessage += `It's very important that you read <#${IMPORTANT_CHANNELS.RULES}> and <#${IMPORTANT_CHANNELS.ANNOUNCEMENTS}>\n\n`;
                     
-                    // **MENCIÓN ESPECÍFICA PARA CAMBIAR ALIANZA (usando ID del bot)**
+                    // **MENCIÓN ESPECÍFICA PARA CAMBIAR ALIANZA**
                     confirmationMessage += `🔄 **To change your alliance later:**\n`;
                     if (BOT_ID) {
                         confirmationMessage += `Write \`!changealliance\` to <@${BOT_ID}> in a Direct Message.\n\n`;
@@ -459,7 +459,7 @@ client.on('messageCreate', async (message) => {
                                 userInfo.step = 'changing_alliance_success';
                                 userData.set(userId, userInfo);
                                 
-                                // Guardar en registros
+                                // Guardar en registros (CON MENCIÓN)
                                 await saveToRegistersChannel(guild, {
                                     discordTag: userTag,
                                     discordId: userId,
