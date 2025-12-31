@@ -15,49 +15,83 @@ const token = process.env.TOKEN;
 const alliances = ['FKIT', 'ISL', 'DNT', 'TNT'];
 const userData = new Map();
 
+// CONFIGURACIÓN - PON AQUÍ LOS IDs DE TUS CANALES
+const CHANNEL_IDS = {
+    WELCOME: '1455691192502190120', // #👋-welcome
+    REGISTERS: '1455738662615781411', // #registers
+    GENERAL: '1455659994232913987' // #💬-general-chat (backup)
+};
+
 client.once('ready', () => {
     console.log(`✅ Bot logged in as ${client.user.tag}`);
     console.log('🚀 Bot is ready and running!');
-    
-    // Verificar canales disponibles
-    const guild = client.guilds.cache.first();
-    if (guild) {
-        console.log('📋 Available channels:');
-        guild.channels.cache.forEach(channel => {
-            if (channel.type === 0) { // Solo canales de texto
-                console.log(`   #${channel.name} (${channel.id})`);
-            }
-        });
-    }
+    console.log(`📌 Welcome Channel ID: ${CHANNEL_IDS.WELCOME}`);
+    console.log(`📌 Registers Channel ID: ${CHANNEL_IDS.REGISTERS}`);
 });
 
 client.on('guildMemberAdd', async (member) => {
     try {
-        console.log(`👤 New member: ${member.user.tag}`);
+        console.log(`👤 New member: ${member.user.tag} (${member.id})`);
         
-        // BUSCAR CANAL DE BIENVENIDA - MÚLTIPLES OPCIONES
-        const channel = member.guild.channels.cache.find(ch => 
-            ch.type === 0 && ( // Solo canales de texto
-                ch.name.toLowerCase().includes('welcome') ||
-                ch.name.toLowerCase().includes('general') ||
-                ch.name === '👋-welcome' ||
-                ch.name === '💬-general-chat' ||
-                ch.name === 'welcome' ||
-                ch.name === 'general' ||
-                ch.id === 'TU_ID_DEL_CANAL' // Reemplaza con ID si quieres
-            )
-        );
+        // INTENTAR PRIMERO EL CANAL #👋-welcome POR SU ID
+        let channel = member.guild.channels.cache.get(CHANNEL_IDS.WELCOME);
+        
+        // Si no encuentra por ID, buscar por nombre
+        if (!channel) {
+            channel = member.guild.channels.cache.find(ch => 
+                ch.type === 0 && ch.name === '👋-welcome'
+            );
+        }
+        
+        // Si aún no encuentra, usar #💬-general-chat
+        if (!channel) {
+            channel = member.guild.channels.cache.get(CHANNEL_IDS.GENERAL);
+            console.log(`⚠️ Using backup channel: #${channel?.name}`);
+        }
         
         if (!channel) {
-            console.log('❌ No welcome channel found. Available text channels:');
+            console.log('❌ No channel found! Available channels:');
             member.guild.channels.cache.forEach(ch => {
                 if (ch.type === 0) console.log(`   - ${ch.name} (${ch.id})`);
             });
             return;
         }
 
-        console.log(`✅ Using channel: #${channel.name}`);
+        console.log(`✅ Selected channel: #${channel.name} (${channel.id})`);
+        
+        // VERIFICAR PERMISOS DEL BOT EN EL CANAL
+        const botMember = member.guild.members.cache.get(client.user.id);
+        const permissions = channel.permissionsFor(botMember);
+        
+        if (!permissions) {
+            console.log('❌ Cannot check bot permissions');
+            return;
+        }
+        
+        console.log(`🔍 Bot permissions in #${channel.name}:`);
+        console.log(`   - Send Messages: ${permissions.has('SendMessages') ? '✅' : '❌'}`);
+        console.log(`   - View Channel: ${permissions.has('ViewChannel') ? '✅' : '❌'}`);
+        console.log(`   - Add Reactions: ${permissions.has('AddReactions') ? '✅' : '❌'}`);
+        
+        if (!permissions.has('SendMessages') || !permissions.has('ViewChannel')) {
+            console.log('❌ Bot lacks permissions in this channel!');
+            
+            // Intentar enviar mensaje a #💬-general-chat como error
+            const generalChannel = member.guild.channels.cache.get(CHANNEL_IDS.GENERAL);
+            if (generalChannel && generalChannel.permissionsFor(botMember)?.has('SendMessages')) {
+                await generalChannel.send(
+                    `⚠️ **ERROR**: Bot needs permissions in #👋-welcome channel!\n` +
+                    `Please give me:\n` +
+                    `• View Channel\n` +
+                    `• Send Messages\n` +
+                    `• Add Reactions\n` +
+                    `• Manage Messages`
+                );
+            }
+            return;
+        }
 
+        // CREAR Y ENVIAR MENSAJE DE BIENVENIDA
         const embed = new EmbedBuilder()
             .setColor('#0099ff')
             .setTitle('🎮 WELCOME TO THE SERVER!')
@@ -76,31 +110,45 @@ client.on('guildMemberAdd', async (member) => {
             embeds: [embed]
         });
         
-        // Añadir reacciones
+        // AÑADIR REACCIONES
         await message.react('1️⃣');
         await message.react('2️⃣');
         await message.react('3️⃣');
         await message.react('4️⃣');
 
-        // Guardar información
+        // GUARDAR INFORMACIÓN
         userData.set(member.id, {
             messageId: message.id,
             channelId: channel.id,
             step: 'waiting_for_alliance',
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            guildId: member.guild.id
         });
 
-        console.log(`✅ Welcome message sent for ${member.user.tag}`);
+        console.log(`✅ Welcome message sent for ${member.user.tag} in #${channel.name}`);
+        console.log(`📝 Message ID: ${message.id}`);
 
-        // Limpiar después de 10 minutos
+        // LIMPIAR DESPUÉS DE 10 MINUTOS
         setTimeout(() => {
             if (userData.get(member.id)?.step === 'waiting_for_alliance') {
                 userData.delete(member.id);
+                console.log(`⏰ Cleared registration for ${member.user.tag} (timeout)`);
             }
         }, 600000);
 
     } catch (error) {
-        console.error('❌ Error in guildMemberAdd:', error);
+        console.error('❌ Error in guildMemberAdd:', error.message);
+        console.error('Error details:', error.code, error.status);
+        
+        // Mostrar información útil del error
+        if (error.code === 50001) {
+            console.error('🚫 ERROR: Bot MISSING ACCESS to channel!');
+            console.error('🔧 Solution:');
+            console.error('   1. Right-click #👋-welcome channel');
+            console.error('   2. Edit Channel → Permissions');
+            console.error('   3. Add role "Alliance Bot"');
+            console.error('   4. Enable: View Channel, Send Messages, Add Reactions');
+        }
     }
 });
 
@@ -108,30 +156,17 @@ client.on('messageReactionAdd', async (reaction, user) => {
     if (user.bot) return;
     
     try {
-        // Si la reacción está en caché parcial, la buscamos completa
         if (reaction.partial) {
             await reaction.fetch();
         }
         
         const member = reaction.message.guild?.members.cache.get(user.id);
-        if (!member) {
-            console.log(`❌ Member not found for user: ${user.tag}`);
-            return;
-        }
+        if (!member) return;
 
         const userInfo = userData.get(user.id);
-        if (!userInfo) {
-            console.log(`❌ No user info for: ${user.tag}`);
-            return;
-        }
+        if (!userInfo) return;
         
-        // Verificar que es el mensaje correcto
-        if (userInfo.messageId !== reaction.message.id) {
-            console.log(`ℹ️ Reaction on different message from ${user.tag}`);
-            return;
-        }
-
-        console.log(`🔄 ${user.tag} reacted with: ${reaction.emoji.name}`);
+        if (userInfo.messageId !== reaction.message.id) return;
 
         const emojiToAlliance = {
             '1️⃣': 'FKIT',
@@ -141,12 +176,9 @@ client.on('messageReactionAdd', async (reaction, user) => {
         };
 
         const alliance = emojiToAlliance[reaction.emoji.name];
-        if (!alliance) {
-            console.log(`❌ Invalid emoji from ${user.tag}: ${reaction.emoji.name}`);
-            return;
-        }
+        if (!alliance) return;
 
-        // Eliminar otras reacciones del usuario
+        // ELIMINAR OTRAS REACCIONES
         const message = reaction.message;
         const userReactions = message.reactions.cache.filter(r => r.users.cache.has(user.id));
         
@@ -154,18 +186,18 @@ client.on('messageReactionAdd', async (reaction, user) => {
             try {
                 await userReaction.users.remove(user.id);
             } catch (err) {
-                console.error('Failed to remove reaction:', err);
+                // Ignorar errores al eliminar reacciones
             }
         }
 
-        // Asignar rol
+        // ASIGNAR ROL
         const role = member.guild.roles.cache.find(r => r.name === alliance);
         if (role) {
             try {
                 await member.roles.add(role);
                 console.log(`✅ Role ${alliance} assigned to ${user.tag}`);
                 
-                // Enviar DM
+                // ENVIAR DM
                 const dmChannel = await member.createDM();
                 
                 userData.set(user.id, {
@@ -175,51 +207,38 @@ client.on('messageReactionAdd', async (reaction, user) => {
                 });
 
                 await dmChannel.send('**What is your in-game ID?**\n*(Please respond with your game ID number)*');
-                console.log(`📨 DM sent to ${user.tag} for game ID`);
+                console.log(`📨 DM sent to ${user.tag}`);
                 
             } catch (dmError) {
-                console.error('❌ Could not send DM to:', user.tag, dmError);
-                // Intentar enviar mensaje al canal
+                console.error('❌ Could not send DM:', dmError.message);
                 try {
-                    await message.channel.send(`<@${user.id}> I couldn't send you a DM. Please check your privacy settings and allow DMs from server members.`);
-                } catch (channelError) {
-                    console.error('Also failed to send channel message:', channelError);
+                    await message.channel.send(`<@${user.id}> Please enable DMs and try reacting again.`);
+                } catch (e) {
+                    // Ignorar
                 }
             }
-        } else {
-            console.log(`❌ Role not found: ${alliance}`);
-            await message.channel.send(`<@${user.id}> Error: Alliance role "${alliance}" not found. Contact admin.`);
         }
     } catch (error) {
-        console.error('❌ Error in messageReactionAdd:', error);
+        console.error('❌ Error in messageReactionAdd:', error.message);
     }
 });
 
 client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
-    if (message.guild) return; // Solo procesar DMs
+    if (message.guild) return;
 
     try {
-        console.log(`📩 DM from ${message.author.tag}: ${message.content.substring(0, 50)}...`);
-
         const guild = client.guilds.cache.first();
         const member = guild?.members.cache.get(message.author.id);
-        if (!member) {
-            console.log(`❌ Member not in guild: ${message.author.tag}`);
-            return;
-        }
+        if (!member) return;
 
         const userInfo = userData.get(message.author.id);
-        if (!userInfo) {
-            console.log(`❌ No active registration for ${message.author.tag}`);
-            await message.author.send('You need to start the registration process first by joining the server and reacting to the welcome message.');
-            return;
-        }
+        if (!userInfo) return;
 
         if (userInfo.step === 'asking_id') {
             const gameId = message.content.trim();
             if (!gameId || gameId.length < 2) {
-                await message.author.send('❌ Please provide a valid game ID (at least 2 characters).');
+                await message.author.send('❌ Please provide a valid game ID.');
                 return;
             }
 
@@ -230,26 +249,16 @@ client.on('messageCreate', async (message) => {
             });
 
             await message.author.send('**What is your in-game nickname?**\n*(Please respond with your exact in-game name)*');
-            console.log(`✅ ${message.author.tag} provided game ID: ${gameId}`);
         } 
         else if (userInfo.step === 'asking_nickname') {
             const gameNickname = message.content.trim();
             if (!gameNickname || gameNickname.length < 2) {
-                await message.author.send('❌ Please provide a valid in-game nickname (at least 2 characters).');
+                await message.author.send('❌ Please provide a valid in-game nickname.');
                 return;
             }
             
-            console.log(`📝 Registration completing for ${message.author.tag}`);
-            
-            // Registrar en canal "registers"
-            const registerChannel = member.guild.channels.cache.find(ch => 
-                ch.type === 0 && (
-                    ch.name.toLowerCase() === 'registers' || 
-                    ch.name.toLowerCase().includes('register') ||
-                    ch.name === '📋-registers' ||
-                    ch.name === '📝-registros'
-                )
-            );
+            // REGISTRAR EN CANAL #registers
+            const registerChannel = guild.channels.cache.get(CHANNEL_IDS.REGISTERS);
             
             if (registerChannel) {
                 const embed = new EmbedBuilder()
@@ -257,81 +266,79 @@ client.on('messageCreate', async (message) => {
                     .setTitle('📝 NEW PLAYER REGISTRATION')
                     .setThumbnail(message.author.displayAvatarURL())
                     .addFields(
-                        { name: '👤 Discord User', value: `${message.author.tag}\nID: ${message.author.id}`, inline: true },
+                        { name: '👤 Discord User', value: `${message.author.tag}`, inline: true },
                         { name: '🛡️ Alliance', value: userInfo.alliance, inline: true },
                         { name: '🎮 Game ID', value: `\`${userInfo.gameId}\``, inline: true },
                         { name: '🏷️ Game Nickname', value: `\`${gameNickname}\``, inline: true },
-                        { name: '📅 Registration Date', value: new Date().toLocaleString('en-US', { 
-                            timeZone: 'UTC',
-                            dateStyle: 'full',
-                            timeStyle: 'short'
-                        }), inline: false }
+                        { name: '📅 Date', value: new Date().toLocaleString(), inline: false }
                     )
-                    .setFooter({ text: 'Registration System • Alliance Bot' })
+                    .setFooter({ text: 'Alliance Registration System' })
                     .setTimestamp();
 
                 await registerChannel.send({ embeds: [embed] });
-                console.log(`✅ Registration logged in #${registerChannel.name}`);
-            } else {
-                console.log('❌ No registers channel found');
-                // Mostrar canales disponibles
-                console.log('Available channels:');
-                member.guild.channels.cache.forEach(ch => {
-                    if (ch.type === 0) console.log(`   - ${ch.name} (${ch.id})`);
-                });
+                console.log(`✅ Registration logged for ${message.author.tag}`);
             }
 
-            // Mensaje final al usuario
-            const welcomeEmbed = new EmbedBuilder()
-                .setColor('#7289DA')
-                .setTitle('✅ REGISTRATION COMPLETE!')
-                .setDescription(`
-**Thank you for registering!** 🎉🎉
+            // MENSAJE FINAL
+            await message.author.send({
+                embeds: [
+                    new EmbedBuilder()
+                        .setColor('#7289DA')
+                        .setTitle('✅ REGISTRATION COMPLETE!')
+                        .setDescription(`**Thank you for registering!** 🎉\n\nYou are now part of the **${userInfo.alliance}** alliance.\nYou have access to all channels.\n\n**Translation:** React to messages with flags to translate.\n\nEnjoy! 👋`)
+                ]
+            });
 
-You have been assigned to the **${userInfo.alliance}** alliance.
-You now have access to all alliance channels.
-
-**🌍 Translation Feature:**
-You can translate messages by reacting with flags:
-🇺🇸 English | 🇪🇸 Spanish | 🇫🇷 French
-🇩🇪 German | 🇮🇹 Italian | 🇵🇹 Portuguese
-
-Enjoy your stay in the server! 👋
-                `);
-
-            await message.author.send({ embeds: [welcomeEmbed] });
-            console.log(`🎉 Registration completed for ${message.author.tag}`);
-
-            // Limpiar datos del usuario
             userData.delete(message.author.id);
-            
+            console.log(`🎉 Registration completed for ${message.author.tag}`);
         }
     } catch (error) {
-        console.error('❌ Error in messageCreate:', error);
-        try {
-            await message.author.send('❌ An error occurred. Please contact an administrator.');
-        } catch (err) {
-            console.error('Could not send error message:', err);
-        }
+        console.error('❌ Error processing DM:', error.message);
     }
 });
 
-// Comando de prueba
+// COMANDO PARA VER ESTADO DEL BOT
 client.on('messageCreate', async (message) => {
-    if (message.content === '!testbot' && message.member.permissions.has('ADMINISTRATOR')) {
-        await message.reply('🤖 Bot is working!');
-        console.log('✅ Test command received');
+    if (message.content === '!botstatus' && message.member.permissions.has('Administrator')) {
+        const guild = message.guild;
+        const botMember = guild.members.cache.get(client.user.id);
+        
+        const statusEmbed = new EmbedBuilder()
+            .setColor('#0099ff')
+            .setTitle('🤖 BOT STATUS')
+            .addFields(
+                { name: 'Bot Name', value: client.user.tag, inline: true },
+                { name: 'Status', value: client.user.presence?.status || 'unknown', inline: true },
+                { name: 'Uptime', value: `${process.uptime().toFixed(0)}s`, inline: true },
+                { name: 'Active Registrations', value: `${userData.size} users`, inline: true }
+            );
+        
+        // Verificar permisos en canales
+        const welcomeChannel = guild.channels.cache.get(CHANNEL_IDS.WELCOME);
+        if (welcomeChannel) {
+            const perms = welcomeChannel.permissionsFor(botMember);
+            statusEmbed.addFields(
+                { name: `#${welcomeChannel.name} Permissions`, 
+                  value: `View: ${perms?.has('ViewChannel') ? '✅' : '❌'}\nSend: ${perms?.has('SendMessages') ? '✅' : '❌'}\nReact: ${perms?.has('AddReactions') ? '✅' : '❌'}` }
+            );
+        }
+        
+        await message.reply({ embeds: [statusEmbed] });
     }
 });
 
-// Manejar errores
-client.on('error', console.error);
-process.on('unhandledRejection', console.error);
+// MANEJAR ERRORES
+client.on('error', error => console.error('Client error:', error));
+process.on('unhandledRejection', error => console.error('Unhandled rejection:', error));
 
-// Iniciar bot
+// INICIAR BOT
 if (!token) {
-    console.error('❌ ERROR: No token found. Set TOKEN environment variable in Railway.');
+    console.error('❌ ERROR: No TOKEN environment variable');
     process.exit(1);
 }
 
-client.login(token).catch(console.error);
+client.login(token).then(() => {
+    console.log('✅ Bot login successful');
+}).catch(error => {
+    console.error('❌ Login failed:', error.message);
+});
