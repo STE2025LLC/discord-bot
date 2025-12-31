@@ -23,13 +23,16 @@ const IMPORTANT_CHANNELS = {
     ANNOUNCEMENTS: '1455687691021848823'
 };
 
-// Tu bot tag (cámbialo si es diferente)
-const BOT_TAG = 'Alliance Bot#5378';
+// ID de tu bot (se llenará automáticamente cuando el bot inicie)
+let BOT_ID = '';
 
 client.once('ready', () => {
     console.log(`✅ Bot logged in as ${client.user.tag}`);
+    console.log(`🆔 Bot ID: ${client.user.id}`);
     console.log('🚀 Bot is ready!');
-    console.log(`🤖 Bot tag: ${BOT_TAG}`);
+    
+    // Guardar el ID del bot automáticamente
+    BOT_ID = client.user.id;
     console.log(`📋 Available commands:`);
     console.log(`   - !register (in DM)`);
     console.log(`   - !changealliance (in DM)`);
@@ -375,7 +378,7 @@ client.on('messageCreate', async (message) => {
                         console.error('Save error:', saveError.message);
                     }
                     
-                    // CONFIRMACIÓN AL USUARIO (con mención ESPECÍFICA para cambiar alianza)
+                    // CONFIRMACIÓN AL USUARIO
                     let confirmationMessage = `✅ **REGISTRATION COMPLETE!** 🎉\n\n`;
                     confirmationMessage += `**Your information has been registered:**\n`;
                     confirmationMessage += `• Alliance: **${userInfo.alliance}**\n`;
@@ -398,9 +401,13 @@ client.on('messageCreate', async (message) => {
                     confirmationMessage += `📢 **Important:**\n`;
                     confirmationMessage += `It's very important that you read <#${IMPORTANT_CHANNELS.RULES}> and <#${IMPORTANT_CHANNELS.ANNOUNCEMENTS}>\n\n`;
                     
-                    // **MENCIÓN ESPECÍFICA PARA CAMBIAR ALIANZA**
+                    // **MENCIÓN ESPECÍFICA PARA CAMBIAR ALIANZA (usando ID del bot)**
                     confirmationMessage += `🔄 **To change your alliance later:**\n`;
-                    confirmationMessage += `Write \`!changealliance\` to **@${BOT_TAG}** in a Direct Message.\n\n`;
+                    if (BOT_ID) {
+                        confirmationMessage += `Write \`!changealliance\` to <@${BOT_ID}> in a Direct Message.\n\n`;
+                    } else {
+                        confirmationMessage += `Write \`!changealliance\` to the bot in a Direct Message.\n\n`;
+                    }
                     
                     confirmationMessage += `Enjoy your stay in the server! 👋`;
                     
@@ -511,13 +518,22 @@ client.on('messageCreate', async (message) => {
             }
             
             // MENSAJE NORMAL EN DM
-            await message.author.send({
-                content: `Available commands:\n\n` +
-                        `• \`!register\` - Start registration\n` +
-                        `• \`!changealliance\` - Change your alliance\n\n` +
-                        `Type one of the commands above to continue.\n\n` +
-                        `*To change alliance, write \`!changealliance\` to **@${BOT_TAG}** in DM.*`
-            });
+            if (BOT_ID) {
+                await message.author.send({
+                    content: `Available commands:\n\n` +
+                            `• \`!register\` - Start registration\n` +
+                            `• \`!changealliance\` - Change your alliance\n\n` +
+                            `Type one of the commands above to continue.\n\n` +
+                            `*To change alliance, write \`!changealliance\` to <@${BOT_ID}> in DM.*`
+                });
+            } else {
+                await message.author.send({
+                    content: 'Available commands:\n\n' +
+                            '• `!register` - Start registration\n' +
+                            '• `!changealliance` - Change your alliance\n\n' +
+                            'Type one of the commands above to continue.'
+                });
+            }
             
         } catch (error) {
             console.error('DM error:', error.message);
