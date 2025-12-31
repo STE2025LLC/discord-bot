@@ -15,6 +15,7 @@ const userData = new Map();
 
 // Lista de alianzas válidas
 const VALID_ALLIANCES = ['FKIT', 'ISL', 'DNT', 'TNT'];
+const NOT_VERIFIED_ROLE = 'Not verified'; // Nombre del rol no verificado
 
 client.once('ready', () => {
     console.log(`✅ Bot logged in as ${client.user.tag}`);
@@ -22,12 +23,34 @@ client.once('ready', () => {
     console.log(`📋 Available commands:`);
     console.log(`   - !register (in DM)`);
     console.log(`   - !changealliance (in DM)`);
+    console.log(`📌 Not verified role: "${NOT_VERIFIED_ROLE}"`);
 });
 
 client.on('guildMemberAdd', async (member) => {
     try {
         console.log(`👤 New member: ${member.user.tag}`);
         
+        // ASIGNAR ROL "Not verified" automáticamente
+        try {
+            const notVerifiedRole = member.guild.roles.cache.find(r => 
+                r.name === NOT_VERIFIED_ROLE
+            );
+            
+            if (notVerifiedRole) {
+                await member.roles.add(notVerifiedRole);
+                console.log(`🔒 Added "${NOT_VERIFIED_ROLE}" role to ${member.user.tag}`);
+            } else {
+                console.log(`❌ Role "${NOT_VERIFIED_ROLE}" not found in server!`);
+                console.log(`   Available roles:`);
+                member.guild.roles.cache.forEach(role => {
+                    console.log(`   - ${role.name}`);
+                });
+            }
+        } catch (roleError) {
+            console.error(`❌ Error assigning "${NOT_VERIFIED_ROLE}" role:`, roleError.message);
+        }
+        
+        // Mensaje en canal de bienvenida
         const welcomeChannel = member.guild.channels.cache.find(ch => 
             ch.type === 0 && ch.name === '👋-welcome'
         );
@@ -38,16 +61,17 @@ client.on('guildMemberAdd', async (member) => {
             });
         }
         
+        // Enviar DM
         try {
             await member.send({
-                content: '**Welcome!** 👋\n\nTo register and get access to all channels, type:\n\n```!register```\n\nI will ask you 3 simple questions about your game account.'
+                content: '**Welcome!** 👋\n\nTo complete your registration and get access to all channels, type:\n\n```!register```\n\nI will ask you 3 simple questions about your game account.\n\n*You currently have the "Not verified" role until you complete registration.*'
             });
         } catch (error) {
             console.log(`⚠️ Could not DM ${member.user.tag}`);
         }
         
     } catch (error) {
-        console.error('Error:', error.message);
+        console.error('Error in guildMemberAdd:', error.message);
     }
 });
 
@@ -149,6 +173,56 @@ async function changeUserAlliance(userId, newAlliance, guild) {
     }
 }
 
+// FUNCIÓN para completar verificación
+async function completeVerification(userId, userInfo, guild) {
+    try {
+        const member = guild.members.cache.get(userId);
+        if (!member) {
+            console.log(`❌ Member ${userId} not found in guild`);
+            return false;
+        }
+        
+        console.log(`✅ Completing verification for ${member.user.tag}`);
+        
+        // 1. ELIMINAR rol "Not verified"
+        const notVerifiedRole = guild.roles.cache.find(r => r.name === NOT_VERIFIED_ROLE);
+        if (notVerifiedRole && member.roles.cache.has(notVerifiedRole.id)) {
+            await member.roles.remove(notVerifiedRole);
+            console.log(`   ➖ Removed "${NOT_VERIFIED_ROLE}" role`);
+        }
+        
+        // 2. ELIMINAR otros roles de alianza
+        for (const alliance of VALID_ALLIANCES) {
+            const role = guild.roles.cache.find(r => r.name === alliance);
+            if (role && member.roles.cache.has(role.id)) {
+                await member.roles.remove(role);
+                console.log(`   ➖ Removed old alliance role: ${alliance}`);
+            }
+        }
+        
+        // 3. ASIGNAR nuevo rol de alianza
+        const newRole = guild.roles.cache.find(r => r.name === userInfo.alliance);
+        if (!newRole) {
+            console.log(`❌ Role ${userInfo.alliance} not found`);
+            return false;
+        }
+        
+        await member.roles.add(newRole);
+        console.log(`   ➕ Added alliance role: ${userInfo.alliance}`);
+        
+        return {
+            success: true,
+            removedNotVerified: notVerifiedRole ? true : false,
+            addedRole: userInfo.alliance,
+            memberTag: member.user.tag
+        };
+        
+    } catch (error) {
+        console.error(`❌ Error completing verification:`, error.message);
+        return false;
+    }
+}
+
 client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
     
@@ -220,7 +294,6 @@ client.on('messageCreate', async (message) => {
                     userInfo.step = 2;
                     userData.set(userId, userInfo);
                     
-                    // **NO avisa de los 16 caracteres aquí**
                     await message.author.send({
                         content: `✅ **Alliance: ${answer}**\n\n**Question 2/3:**\n**What is your in-game ID?**`
                     });
@@ -274,34 +347,16 @@ client.on('messageCreate', async (message) => {
                     console.log(`   Game ID: ${userInfo.gameId}`);
                     console.log(`   Nickname: ${userInfo.nickname}`);
                     
-                    // ASIGNAR ROL
-                    let roleAssigned = false;
+                    // COMPLETAR VERIFICACIÓN (quitar "Not verified", añadir alianza)
+                    let verificationResult = false;
                     try {
                         const guild = client.guilds.cache.first();
                         if (guild) {
-                            const member = guild.members.cache.get(userId);
-                            if (member) {
-                                const role = guild.roles.cache.find(r => r.name === userInfo.alliance);
-                                if (role) {
-                                    // Eliminar otros roles de alianza primero
-                                    for (const alliance of VALID_ALLIANCES) {
-                                        if (alliance !== userInfo.alliance) {
-                                            const oldRole = guild.roles.cache.find(r => r.name === alliance);
-                                            if (oldRole && member.roles.cache.has(oldRole.id)) {
-                                                await member.roles.remove(oldRole);
-                                                console.log(`   🗑️ Removed old role: ${alliance}`);
-                                            }
-                                        }
-                                    }
-                                    
-                                    await member.roles.add(role);
-                                    roleAssigned = true;
-                                    console.log(`🎖️ Role ${userInfo.alliance} assigned`);
-                                }
-                            }
+                            const result = await completeVerification(userId, userInfo, guild);
+                            verificationResult = result && result.success;
                         }
-                    } catch (roleError) {
-                        console.error('Role error:', roleError.message);
+                    } catch (verifyError) {
+                        console.error('Verification error:', verifyError.message);
                     }
                     
                     // GUARDAR EN REGISTROS
@@ -321,9 +376,14 @@ client.on('messageCreate', async (message) => {
                     confirmationMessage += `• Game ID: **${userInfo.gameId}**\n`;
                     confirmationMessage += `• Nickname: **${userInfo.nickname}**\n\n`;
                     
-                    if (roleAssigned) {
-                        confirmationMessage += `🎖️ **You have received the ${userInfo.alliance} role!**\n`;
-                        confirmationMessage += `You now have access to all channels.\n\n`;
+                    if (verificationResult) {
+                        confirmationMessage += `🔓 **Verification completed!**\n`;
+                        confirmationMessage += `• Removed: **"${NOT_VERIFIED_ROLE}"** role\n`;
+                        confirmationMessage += `• Added: **${userInfo.alliance}** role\n\n`;
+                        confirmationMessage += `You now have full access to all channels.\n\n`;
+                    } else {
+                        confirmationMessage += `⚠️ **Role assignment may have failed.**\n`;
+                        confirmationMessage += `Please contact an administrator if you don't have access.\n\n`;
                     }
                     
                     confirmationMessage += `🌍 **Translation Feature:**\nYou can translate any message by reacting with flag emojis.\n\n`;
@@ -338,7 +398,7 @@ client.on('messageCreate', async (message) => {
                     userData.delete(userId);
                     
                     // ANUNCIAR EN BIENVENIDA
-                    if (roleAssigned) {
+                    if (verificationResult) {
                         try {
                             const guild = client.guilds.cache.first();
                             const welcomeChannel = guild.channels.cache.find(ch => 
@@ -346,7 +406,7 @@ client.on('messageCreate', async (message) => {
                             );
                             if (welcomeChannel) {
                                 await welcomeChannel.send({
-                                    content: `🎉 <@${userId}> has joined the **${userInfo.alliance}** alliance and completed registration! Welcome! 👏`
+                                    content: `🎉 <@${userId}> has completed verification and joined the **${userInfo.alliance}** alliance! Welcome! 👏`
                                 });
                             }
                         } catch (e) {
