@@ -17,6 +17,12 @@ const userData = new Map();
 const VALID_ALLIANCES = ['FKIT', 'ISL', 'DNT', 'TNT'];
 const NOT_VERIFIED_ROLE = 'Not verified'; // Nombre del rol no verificado
 
+// IDs de canales importantes (mencionados en mensaje final)
+const IMPORTANT_CHANNELS = {
+    RULES: '1455687620121198840',     // #📋-rules
+    ANNOUNCEMENTS: '1455687691021848823' // #📢-announcements
+};
+
 client.once('ready', () => {
     console.log(`✅ Bot logged in as ${client.user.tag}`);
     console.log('🚀 Bot is ready!');
@@ -41,10 +47,6 @@ client.on('guildMemberAdd', async (member) => {
                 console.log(`🔒 Added "${NOT_VERIFIED_ROLE}" role to ${member.user.tag}`);
             } else {
                 console.log(`❌ Role "${NOT_VERIFIED_ROLE}" not found in server!`);
-                console.log(`   Available roles:`);
-                member.guild.roles.cache.forEach(role => {
-                    console.log(`   - ${role.name}`);
-                });
             }
         } catch (roleError) {
             console.error(`❌ Error assigning "${NOT_VERIFIED_ROLE}" role:`, roleError.message);
@@ -387,6 +389,11 @@ client.on('messageCreate', async (message) => {
                     }
                     
                     confirmationMessage += `🌍 **Translation Feature:**\nYou can translate any message by reacting with flag emojis.\n\n`;
+                    
+                    // **MENSAJE PERSONALIZADO CON IDs DE CANALES**
+                    confirmationMessage += `📢 **Important:**\n`;
+                    confirmationMessage += `It's very important that you read <#${IMPORTANT_CHANNELS.RULES}> and <#${IMPORTANT_CHANNELS.ANNOUNCEMENTS}>\n\n`;
+                    
                     confirmationMessage += `🔄 **To change alliance later:** Type \`!changealliance\` in our DMs.\n\n`;
                     confirmationMessage += `Enjoy your stay in the server! 👋`;
                     
