@@ -69,6 +69,13 @@ async function saveToRegistersChannel(guild, userInfo) {
     }
     
     try {
+        // Obtener fecha actual en UTC
+        const now = new Date();
+        const utcDate = now.toUTCString(); // Formato UTC estándar
+        
+        // Formato alternativo más legible
+        const utcFormatted = now.toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
+        
         // Mensaje de texto formateado para el canal de registros
         const registerMessage = `
 📝 **NEW REGISTRATION** 📝
@@ -78,7 +85,7 @@ async function saveToRegistersChannel(guild, userInfo) {
 🛡️ **Alliance:** ${userInfo.alliance}
 🎮 **Game ID:** ${userInfo.gameId}
 🏷️ **In-Game Nickname:** ${userInfo.nickname}
-📅 **Registration Date:** ${new Date().toLocaleString('en-US')}
+📅 **Registration Date (UTC):** ${utcFormatted}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         `.trim();
         
@@ -93,7 +100,7 @@ async function saveToRegistersChannel(guild, userInfo) {
         
         // Método alternativo más simple
         try {
-            const simpleMessage = `📝 REGISTRATION: ${userInfo.discordTag} | Alliance: ${userInfo.alliance} | Game ID: ${userInfo.gameId} | Nickname: ${userInfo.nickname} | ${new Date().toLocaleDateString()}`;
+            const simpleMessage = `📝 REGISTRATION: ${userInfo.discordTag} | Alliance: ${userInfo.alliance} | Game ID: ${userInfo.gameId} | Nickname: ${userInfo.nickname} | ${new Date().toUTCString()}`;
             await registerChannel.send(simpleMessage);
             console.log('✅ Saved with alternative method');
             return true;
@@ -173,7 +180,7 @@ client.on('messageCreate', async (message) => {
                         return;
                     }
                     
-                    // Validar que solo contenga caracteres válidos (números y letras)
+                    // Validar que solo contenga caracteres válidos
                     if (!/^[a-zA-Z0-9]+$/.test(content)) {
                         await message.author.send('❌ **Invalid characters!**\nGame ID can only contain letters and numbers (no spaces or special characters).');
                         return;
