@@ -66,7 +66,7 @@ client.on('guildMemberAdd', async (member) => {
         
         if (welcomeChannel) {
             await welcomeChannel.send({
-                content: `**Hello!** 👋 <@${member.id}> Welcome to **${member.guild.name}**.\n\nPlease check your DMs to complete registration and be able to see all channels.`
+                content: `**Hello!** 👋 <@${member.id}> Welcome to **${member.guild.name}**.\n\nPlease check your DMs to complete your registration and be able to see all the channels.`
             });
         }
         
