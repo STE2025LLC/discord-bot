@@ -17,7 +17,7 @@ const userData = new Map();
 const ALLOWED_GUILD_ID = '1455659993725407354'; // TU ID DE SERVIDOR CORRECTO
 
 // Lista de alianzas válidas
-const VALID_ALLIANCES = ['FKIT', 'ISL', 'NTF', 'TNT'];
+const VALID_ALLIANCES = ['FKIT', 'ISL', 'DNT', 'TNT'];
 const NOT_VERIFIED_ROLE = 'Not verified';
 
 // URLs importantes
@@ -368,7 +368,7 @@ client.on('messageCreate', async (message) => {
                 });
                 
                 await message.author.send({
-                    content: '**✅ REGISTRATION STARTED!**\n\n**Question 1/3:**\n**What is your alliance?**\n\nType: **FKIT**, **ISL**, **NTF**, or **TNT**'
+                    content: '**✅ REGISTRATION STARTED!**\n\n**Question 1/3:**\n**What is your alliance?**\n\nType: **FKIT**, **ISL**, **DNT**, or **TNT**'
                 });
                 
                 return;
@@ -392,7 +392,7 @@ client.on('messageCreate', async (message) => {
                 }
                 
                 await message.author.send({
-                    content: '**🔄 ALLIANCE CHANGE REQUESTED**\n\nTo change your alliance, please type your **new alliance**:\n\nType: **FKIT**, **ISL**, **NTF**, or **TNT**\n\n*Note: Your previous alliance role will be automatically removed.*'
+                    content: '**🔄 ALLIANCE CHANGE REQUESTED**\n\nTo change your alliance, please type your **new alliance**:\n\nType: **FKIT**, **ISL**, **DNT**, or **TNT**\n\n*Note: Your previous alliance role will be automatically removed.*'
                 });
                 
                 userData.set(userId, {
@@ -412,9 +412,9 @@ client.on('messageCreate', async (message) => {
                 if (userInfo.step === 1) {
                     const answer = content.toUpperCase();
                     
-                    // CORREGIDO: Las alianzas son FKIT, ISL, NTF, TNT (no DNT)
+                    // CORREGIDO: Las alianzas son FKIT, ISL, DNT, TNT (no DNT)
                     if (!VALID_ALLIANCES.includes(answer)) {
-                        await message.author.send('❌ **Invalid alliance!**\nType: FKIT, ISL, NTF, or TNT');
+                        await message.author.send('❌ **Invalid alliance!**\nType: FKIT, ISL, DNT, or TNT');
                         return;
                     }
                     
@@ -575,7 +575,7 @@ client.on('messageCreate', async (message) => {
                     const newAlliance = content.toUpperCase();
                     
                     if (!VALID_ALLIANCES.includes(newAlliance)) {
-                        await message.author.send('❌ **Invalid alliance!**\nType: FKIT, ISL, NTF, or TNT');
+                        await message.author.send('❌ **Invalid alliance!**\nType: FKIT, ISL, DNT, or TNT');
                         return;
                     }
                     
