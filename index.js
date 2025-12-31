@@ -15,12 +15,12 @@ const userData = new Map();
 
 // Lista de alianzas válidas
 const VALID_ALLIANCES = ['FKIT', 'ISL', 'DNT', 'TNT'];
-const NOT_VERIFIED_ROLE = 'Not verified'; // Nombre del rol no verificado
+const NOT_VERIFIED_ROLE = 'Not verified';
 
-// IDs de canales importantes (mencionados en mensaje final)
+// IDs de canales importantes
 const IMPORTANT_CHANNELS = {
-    RULES: '1455687620121198840',     // #📋-rules
-    ANNOUNCEMENTS: '1455687691021848823' // #📢-announcements
+    RULES: '1455687620121198840',
+    ANNOUNCEMENTS: '1455687691021848823'
 };
 
 client.once('ready', () => {
@@ -349,7 +349,7 @@ client.on('messageCreate', async (message) => {
                     console.log(`   Game ID: ${userInfo.gameId}`);
                     console.log(`   Nickname: ${userInfo.nickname}`);
                     
-                    // COMPLETAR VERIFICACIÓN (quitar "Not verified", añadir alianza)
+                    // COMPLETAR VERIFICACIÓN
                     let verificationResult = false;
                     try {
                         const guild = client.guilds.cache.first();
@@ -371,7 +371,7 @@ client.on('messageCreate', async (message) => {
                         console.error('Save error:', saveError.message);
                     }
                     
-                    // CONFIRMACIÓN AL USUARIO
+                    // CONFIRMACIÓN AL USUARIO (SIN mención de !changealliance)
                     let confirmationMessage = `✅ **REGISTRATION COMPLETE!** 🎉\n\n`;
                     confirmationMessage += `**Your information has been registered:**\n`;
                     confirmationMessage += `• Alliance: **${userInfo.alliance}**\n`;
@@ -390,11 +390,10 @@ client.on('messageCreate', async (message) => {
                     
                     confirmationMessage += `🌍 **Translation Feature:**\nYou can translate any message by reacting with flag emojis.\n\n`;
                     
-                    // **MENSAJE PERSONALIZADO CON IDs DE CANALES**
+                    // **SOLO LA INFORMACIÓN IMPORTANTE DE LOS CANALES**
                     confirmationMessage += `📢 **Important:**\n`;
                     confirmationMessage += `It's very important that you read <#${IMPORTANT_CHANNELS.RULES}> and <#${IMPORTANT_CHANNELS.ANNOUNCEMENTS}>\n\n`;
                     
-                    confirmationMessage += `🔄 **To change alliance later:** Type \`!changealliance\` in our DMs.\n\n`;
                     confirmationMessage += `Enjoy your stay in the server! 👋`;
                     
                     await message.author.send({
