@@ -27,7 +27,6 @@ client.on('guildMemberAdd', async (member) => {
         );
         
         if (welcomeChannel) {
-            // MENSAJE ACTUALIZADO según lo solicitado
             await welcomeChannel.send({
                 content: `**Hello!** 👋 <@${member.id}> Welcome to **${member.guild.name}**.\n\nPlease check your DMs to complete registration and be able to see all channels.`
             });
@@ -158,13 +157,25 @@ client.on('messageCreate', async (message) => {
                     userData.set(userId, userInfo);
                     
                     await message.author.send({
-                        content: `✅ **Alliance: ${answer}**\n\n**Question 2/3:**\n**What is your in-game ID?**`
+                        content: `✅ **Alliance: ${answer}**\n\n**Question 2/3:**\n**What is your in-game ID?**\n\n*(Maximum 16 characters)*`
                     });
                 }
                 
                 else if (userInfo.step === 2) {
+                    // VALIDACIÓN: MÁXIMO 16 CARACTERES
                     if (!content || content.length < 2) {
-                        await message.author.send('❌ **Invalid ID!**');
+                        await message.author.send('❌ **Invalid ID!**\nPlease provide a valid in-game ID (minimum 2 characters)');
+                        return;
+                    }
+                    
+                    if (content.length > 16) {
+                        await message.author.send(`❌ **Game ID too long!**\nMaximum 16 characters allowed.\n\nYour ID has **${content.length}** characters.\nPlease provide a shorter Game ID.`);
+                        return;
+                    }
+                    
+                    // Validar que solo contenga caracteres válidos (números y letras)
+                    if (!/^[a-zA-Z0-9]+$/.test(content)) {
+                        await message.author.send('❌ **Invalid characters!**\nGame ID can only contain letters and numbers (no spaces or special characters).');
                         return;
                     }
                     
@@ -179,7 +190,12 @@ client.on('messageCreate', async (message) => {
                 
                 else if (userInfo.step === 3) {
                     if (!content || content.length < 2) {
-                        await message.author.send('❌ **Invalid nickname!**');
+                        await message.author.send('❌ **Invalid nickname!**\nPlease provide a valid in-game nickname (minimum 2 characters)');
+                        return;
+                    }
+                    
+                    if (content.length > 32) {
+                        await message.author.send(`❌ **Nickname too long!**\nMaximum 32 characters allowed.\n\nYour nickname has **${content.length}** characters.`);
                         return;
                     }
                     
@@ -214,13 +230,12 @@ client.on('messageCreate', async (message) => {
                         const guild = client.guilds.cache.first();
                         if (guild) {
                             await saveToRegistersChannel(guild, userInfo);
-                            // NO le decimos al usuario que se guardó (solicitado)
                         }
                     } catch (saveError) {
                         console.error('Save error:', saveError.message);
                     }
                     
-                    // 3. CONFIRMACIÓN AL USUARIO (SIN mencionar el guardado)
+                    // 3. CONFIRMACIÓN AL USUARIO
                     let confirmationMessage = `✅ **REGISTRATION COMPLETE!** 🎉\n\n`;
                     confirmationMessage += `**Your information has been registered:**\n`;
                     confirmationMessage += `• Alliance: **${userInfo.alliance}**\n`;
