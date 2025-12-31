@@ -13,188 +13,66 @@ const client = new Client({
 const token = process.env.TOKEN;
 const userData = new Map();
 
-client.once('ready', async () => {
+client.once('ready', () => {
     console.log(`✅ Bot logged in as ${client.user.tag}`);
-    console.log('🚀 Bot ready!');
+    console.log('🚀 Bot is ready!');
     
-    // LISTAR TODOS LOS CANALES para debug
+    // Mostrar canales disponibles
     const guild = client.guilds.cache.first();
     if (guild) {
-        console.log('\n📚 ALL TEXT CHANNELS in server:');
-        let foundRegisters = false;
-        
+        console.log('\n📚 Available channels:');
         guild.channels.cache.forEach(channel => {
-            if (channel.type === 0) { // Canal de texto
-                console.log(`   #${channel.name} - ID: ${channel.id}`);
-                if (channel.name.toLowerCase().includes('register')) {
-                    foundRegisters = true;
-                    console.log(`   ⭐ FOUND REGISTERS-LIKE CHANNEL: #${channel.name} (${channel.id})`);
-                }
+            if (channel.type === 0) {
+                console.log(`   #${channel.name} (${channel.id})`);
             }
         });
-        
-        if (!foundRegisters) {
-            console.log('\n⚠️ No channel found with "register" in name!');
-        }
     }
 });
 
-// ---- FUNCIÓN PARA ENCONTRAR CANAL DE REGISTROS ----
-async function findRegisterChannel(guild) {
-    console.log(`\n🔍 Looking for register channel in ${guild.name}...`);
-    
-    // 1. Buscar por nombre exacto "registers"
-    let channel = guild.channels.cache.find(ch => 
-        ch.type === 0 && ch.name.toLowerCase() === 'registers'
-    );
-    
-    if (channel) {
-        console.log(`✅ Found by exact name: #${channel.name} (${channel.id})`);
-        return channel;
-    }
-    
-    // 2. Buscar por nombre que contenga "register"
-    channel = guild.channels.cache.find(ch => 
-        ch.type === 0 && ch.name.toLowerCase().includes('register')
-    );
-    
-    if (channel) {
-        console.log(`✅ Found by partial name: #${channel.name} (${channel.id})`);
-        return channel;
-    }
-    
-    // 3. Buscar por ID específico (si lo tenemos)
-    const specificId = '1455738662615781411'; // ID que mencionaste
-    channel = guild.channels.cache.get(specificId);
-    
-    if (channel) {
-        console.log(`✅ Found by specific ID: #${channel.name} (${channel.id})`);
-        return channel;
-    }
-    
-    // 4. Si no encuentra, usar el primer canal que el bot pueda escribir
-    console.log('⚠️ No register channel found, listing all channels with permissions:');
-    
-    const botMember = guild.members.cache.get(client.user.id);
-    guild.channels.cache.forEach(ch => {
-        if (ch.type === 0) {
-            const perms = ch.permissionsFor(botMember);
-            if (perms && perms.has('SendMessages') && perms.has('ViewChannel')) {
-                console.log(`   Possible: #${ch.name} (${ch.id})`);
-                if (!channel) channel = ch; // Tomar el primero
-            }
-        }
-    });
-    
-    if (channel) {
-        console.log(`✅ Will use: #${channel.name} (${channel.id})`);
-        return channel;
-    }
-    
-    console.log('❌ No suitable channel found!');
-    return null;
-}
-
-// ---- FUNCIÓN PARA GUARDAR REGISTRO ----
-async function saveRegistration(userInfo, guild) {
-    console.log(`\n💾 Attempting to save registration for ${userInfo.discordTag}...`);
-    
-    try {
-        const registerChannel = await findRegisterChannel(guild);
-        
-        if (!registerChannel) {
-            console.log('❌ Cannot save: No register channel available');
-            return false;
-        }
-        
-        console.log(`✅ Using channel: #${registerChannel.name}`);
-        
-        // Verificar permisos
-        const botMember = guild.members.cache.get(client.user.id);
-        const perms = registerChannel.permissionsFor(botMember);
-        
-        if (!perms.has('ViewChannel') || !perms.has('SendMessages')) {
-            console.log('❌ Bot cannot write to this channel!');
-            console.log(`   View Channel: ${perms.has('ViewChannel')}`);
-            console.log(`   Send Messages: ${perms.has('SendMessages')}`);
-            return false;
-        }
-        
-        // Crear mensaje de registro
-        const registerEmbed = new EmbedBuilder()
-            .setColor('#00ff00')
-            .setTitle('📝 NEW REGISTRATION')
-            .setThumbnail(`https://cdn.discordapp.com/avatars/${userInfo.discordId}/${userInfo.avatar}.png`)
-            .addFields(
-                { name: '👤 Discord User', value: `${userInfo.discordTag}\nID: ${userInfo.discordId}`, inline: false },
-                { name: '🛡️ Alliance', value: `**${userInfo.alliance}**`, inline: true },
-                { name: '🎮 Game ID', value: `\`${userInfo.gameId}\``, inline: true },
-                { name: '🏷️ Nickname', value: `\`${userInfo.nickname}\``, inline: true },
-                { name: '📅 Date', value: new Date().toLocaleString('en-US'), inline: false }
-            )
-            .setFooter({ text: 'Alliance Registration System' })
-            .setTimestamp();
-        
-        console.log(`📤 Sending embed to #${registerChannel.name}...`);
-        const sentMessage = await registerChannel.send({ embeds: [registerEmbed] });
-        
-        console.log(`✅ SUCCESS! Registration saved to #${registerChannel.name}`);
-        console.log(`   Message ID: ${sentMessage.id}`);
-        
-        return true;
-        
-    } catch (error) {
-        console.error('❌ ERROR saving registration:', error.message);
-        console.error('   Full error:', error);
-        return false;
-    }
-}
-
-// ---- WELCOME MESSAGE ----
 client.on('guildMemberAdd', async (member) => {
     try {
-        console.log(`\n👤 New member: ${member.user.tag}`);
+        console.log(`👤 New member: ${member.user.tag}`);
         
         // Buscar canal de bienvenida
         const welcomeChannel = member.guild.channels.cache.find(ch => 
-            ch.type === 0 && (ch.name.includes('welcome') || ch.name.includes('general'))
-        ) || member.guild.systemChannel;
+            ch.type === 0 && ch.name === '👋-welcome'
+        );
         
         if (welcomeChannel) {
             await welcomeChannel.send({
-                content: `👋 Welcome <@${member.id}>! Please check your DMs for registration instructions.`
+                content: `👋 Welcome <@${member.id}>! Check your DMs for registration.`
             });
         }
         
         // Enviar DM
         try {
             await member.send({
-                content: '**Welcome!** 👋\n\nTo register, please type:\n\n```!register```\n\nI will ask you 3 questions about your game account.'
+                content: '**Welcome!** 👋\n\nTo register, type:\n\n```!register```\n\nI will ask 3 questions.'
             });
-            console.log(`📨 DM sent to ${member.user.tag}`);
-        } catch (dmError) {
+        } catch (error) {
             console.log(`⚠️ Could not DM ${member.user.tag}`);
         }
         
     } catch (error) {
-        console.error('Error in welcome:', error.message);
+        console.error('Error:', error.message);
     }
 });
 
-// ---- PROCESS DMs ----
 client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
     
-    if (!message.guild) { // Es un DM
+    // SOLO PROCESAR DMs
+    if (!message.guild) {
         const userId = message.author.id;
         const userTag = message.author.tag;
         const content = message.content.trim();
         
-        console.log(`\n📩 DM from ${userTag}: "${content}"`);
+        console.log(`📩 DM from ${userTag}: "${content}"`);
         
         try {
             // COMANDO !register
             if (content.toLowerCase() === '!register') {
+                
                 if (userData.has(userId)) {
                     const data = userData.get(userId);
                     await message.author.send(`Please answer: **${data.currentQuestion}**`);
@@ -203,18 +81,18 @@ client.on('messageCreate', async (message) => {
                 
                 userData.set(userId, {
                     step: 1,
-                    currentQuestion: 'What is your alliance? (FKIT, ISL, DNT, TNT)',
+                    currentQuestion: 'What is your alliance?',
                     alliance: '',
                     gameId: '',
                     nickname: '',
                     discordTag: userTag,
-                    discordId: userId,
-                    avatar: message.author.avatar
+                    discordId: userId
                 });
                 
                 await message.author.send({
-                    content: '**✅ REGISTRATION STARTED!**\n\n**Question 1/3:**\n**What is your alliance?**\n\nType: FKIT, ISL, DNT, or TNT'
+                    content: '**✅ REGISTRATION STARTED!**\n\n**Question 1/3:**\n**What is your alliance?**\n\nType: **FKIT**, **ISL**, **DNT**, or **TNT**'
                 });
+                
                 return;
             }
             
@@ -222,12 +100,13 @@ client.on('messageCreate', async (message) => {
             if (userData.has(userId)) {
                 const userInfo = userData.get(userId);
                 
+                // PASO 1: ALIANZA
                 if (userInfo.step === 1) {
                     const answer = content.toUpperCase();
-                    const valid = ['FKIT', 'ISL', 'DNT', 'TNT'];
+                    const validAlliances = ['FKIT', 'ISL', 'DNT', 'TNT'];
                     
-                    if (!valid.includes(answer)) {
-                        await message.author.send('❌ Invalid alliance! Type: FKIT, ISL, DNT, or TNT');
+                    if (!validAlliances.includes(answer)) {
+                        await message.author.send('❌ **Invalid alliance!**\nType: FKIT, ISL, DNT, or TNT');
                         return;
                     }
                     
@@ -241,9 +120,10 @@ client.on('messageCreate', async (message) => {
                     });
                 }
                 
+                // PASO 2: GAME ID
                 else if (userInfo.step === 2) {
                     if (!content || content.length < 2) {
-                        await message.author.send('❌ Invalid ID!');
+                        await message.author.send('❌ **Invalid ID!**');
                         return;
                     }
                     
@@ -257,20 +137,18 @@ client.on('messageCreate', async (message) => {
                     });
                 }
                 
+                // PASO 3: NICKNAME (FINAL)
                 else if (userInfo.step === 3) {
                     if (!content || content.length < 2) {
-                        await message.author.send('❌ Invalid nickname!');
+                        await message.author.send('❌ **Invalid nickname!**');
                         return;
                     }
                     
                     userInfo.nickname = content;
                     
-                    console.log(`\n📋 ${userTag} completed registration:`);
-                    console.log(`   Alliance: ${userInfo.alliance}`);
-                    console.log(`   Game ID: ${userInfo.gameId}`);
-                    console.log(`   Nickname: ${userInfo.nickname}`);
+                    console.log(`\n📋 ${userTag} completed registration!`);
                     
-                    // 1. ASIGNAR ROL
+                    // ---- 1. ASIGNAR ROL ----
                     let roleAssigned = false;
                     try {
                         const guild = client.guilds.cache.first();
@@ -289,40 +167,84 @@ client.on('messageCreate', async (message) => {
                         console.error('Role error:', roleError.message);
                     }
                     
-                    // 2. GUARDAR EN REGISTROS
-                    let saved = false;
+                    // ---- 2. INTENTAR GUARDAR EN REGISTROS ----
+                    let savedToChannel = false;
+                    
                     try {
                         const guild = client.guilds.cache.first();
                         if (guild) {
-                            saved = await saveRegistration(userInfo, guild);
+                            // Buscar canal de registros - VARIAS OPCIONES
+                            let registerChannel = guild.channels.cache.find(ch => 
+                                ch.type === 0 && ch.name === 'registers'
+                            );
+                            
+                            if (!registerChannel) {
+                                registerChannel = guild.channels.cache.find(ch => 
+                                    ch.type === 0 && ch.name.toLowerCase().includes('register')
+                                );
+                            }
+                            
+                            if (!registerChannel) {
+                                // Si no encuentra, usar el primer canal donde pueda escribir
+                                registerChannel = guild.channels.cache.find(ch => 
+                                    ch.type === 0 && 
+                                    ch.permissionsFor(guild.members.me)?.has('SendMessages')
+                                );
+                            }
+                            
+                            if (registerChannel) {
+                                console.log(`💾 Attempting to save to #${registerChannel.name}`);
+                                
+                                // Crear embed SIMPLE
+                                const embed = new EmbedBuilder()
+                                    .setColor('#00ff00')
+                                    .setTitle('📝 NEW REGISTRATION')
+                                    .setDescription(`**User:** ${userInfo.discordTag}\n**Alliance:** ${userInfo.alliance}\n**Game ID:** ${userInfo.gameId}\n**Nickname:** ${userInfo.nickname}`)
+                                    .setTimestamp();
+                                
+                                await registerChannel.send({ embeds: [embed] });
+                                savedToChannel = true;
+                                console.log(`✅ Saved to #${registerChannel.name}`);
+                            } else {
+                                console.log('❌ No suitable channel found for saving');
+                            }
                         }
                     } catch (saveError) {
                         console.error('Save error:', saveError.message);
                     }
                     
-                    // 3. ENVIAR CONFIRMACIÓN
-                    const completionEmbed = new EmbedBuilder()
-                        .setColor('#7289DA')
-                        .setTitle('✅ REGISTRATION COMPLETE!')
-                        .setDescription(`**Thank you ${message.author.username}!** 🎉`)
-                        .addFields(
-                            { name: '📋 Your Information', value: `• Alliance: **${userInfo.alliance}**\n• Game ID: **${userInfo.gameId}**\n• Nickname: **${userInfo.nickname}**`, inline: false },
-                            { name: '🎖️ Role', value: roleAssigned ? '✅ Assigned' : '❌ Not assigned', inline: true },
-                            { name: '💾 Saved', value: saved ? '✅ Yes' : '❌ No', inline: true }
-                        )
-                        .setFooter({ text: 'Registration System' });
+                    // ---- 3. ENVIAR CONFIRMACIÓN ----
+                    let confirmationMessage = `✅ **REGISTRATION COMPLETE!**\n\n`;
+                    confirmationMessage += `**Your information:**\n`;
+                    confirmationMessage += `• Alliance: **${userInfo.alliance}** ${roleAssigned ? '✅' : '❌'}\n`;
+                    confirmationMessage += `• Game ID: **${userInfo.gameId}**\n`;
+                    confirmationMessage += `• Nickname: **${userInfo.nickname}**\n\n`;
                     
-                    await message.author.send({ embeds: [completionEmbed] });
+                    if (roleAssigned) {
+                        confirmationMessage += `🎖️ You received the **${userInfo.alliance}** role!\n`;
+                    }
                     
-                    // 4. LIMPIAR
+                    if (savedToChannel) {
+                        confirmationMessage += `💾 Your registration was saved.\n`;
+                    } else {
+                        confirmationMessage += `⚠️ Registration NOT saved to channel (contact admin).\n`;
+                    }
+                    
+                    confirmationMessage += `\n🌍 **Translation:** React with flags to translate messages.`;
+                    
+                    await message.author.send({
+                        content: confirmationMessage
+                    });
+                    
+                    // ---- 4. LIMPIAR ----
                     userData.delete(userId);
                     
-                    // 5. ANUNCIAR
+                    // ---- 5. ANUNCIAR EN BIENVENIDA ----
                     if (roleAssigned) {
                         try {
                             const guild = client.guilds.cache.first();
                             const welcomeChannel = guild.channels.cache.find(ch => 
-                                ch.name.includes('welcome') || ch.name.includes('general')
+                                ch.type === 0 && ch.name === '👋-welcome'
                             );
                             if (welcomeChannel) {
                                 await welcomeChannel.send({
@@ -337,7 +259,7 @@ client.on('messageCreate', async (message) => {
                 return;
             }
             
-            // MENSAJE NORMAL EN DM
+            // OTRO MENSAJE EN DM
             await message.author.send({
                 content: 'Type `!register` to start registration.'
             });
@@ -348,37 +270,26 @@ client.on('messageCreate', async (message) => {
     }
 });
 
-// ---- COMANDO DE TEST ----
+// ---- COMANDO SIMPLE PARA PROBAR ----
 client.on('messageCreate', async (message) => {
-    if (message.content === '!testregister' && message.member?.permissions.has('Administrator')) {
-        console.log('\n🧪 TEST REGISTRATION requested by admin');
-        
-        const testInfo = {
-            discordTag: 'TestUser#1234',
-            discordId: '123456789',
-            alliance: 'FKIT',
-            gameId: 'TEST123',
-            nickname: 'TestPlayer',
-            avatar: 'test'
-        };
-        
-        const saved = await saveRegistration(testInfo, message.guild);
-        
-        await message.reply({
-            content: saved ? '✅ Test registration saved!' : '❌ Test registration failed! Check logs.'
-        });
+    if (message.content === '!test' && message.guild) {
+        await message.reply('Bot is working!');
     }
 });
 
-// ---- START BOT ----
+// ---- ERROR HANDLING ----
+client.on('error', console.error);
+process.on('unhandledRejection', console.error);
+
+// ---- START ----
 if (!token) {
-    console.error('❌ No token!');
+    console.error('❌ No token found!');
     process.exit(1);
 }
 
 client.login(token)
-    .then(() => console.log('\n✅ Bot running!'))
+    .then(() => console.log('✅ Bot started successfully'))
     .catch(error => {
-        console.error('Login failed:', error);
+        console.error('❌ Login failed:', error.message);
         process.exit(1);
     });
