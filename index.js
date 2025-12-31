@@ -14,18 +14,20 @@ const token = process.env.TOKEN;
 const userData = new Map();
 
 // === CONFIGURACIÓN DE SEGURIDAD ===
-// ID DE TU SERVIDOR (el único donde funcionará el bot)
-const ALLOWED_GUILD_ID = '1455659994232913986'; // Reemplaza con tu ID de servidor
+const ALLOWED_GUILD_ID = '1455659993725407354'; // TU ID DE SERVIDOR CORRECTO
 
 // Lista de alianzas válidas
-const VALID_ALLIANCES = ['FKIT', 'ISL', 'DNT', 'TNT'];
+const VALID_ALLIANCES = ['FKIT', 'ISL', 'NTF', 'TNT'];
 const NOT_VERIFIED_ROLE = 'Not verified';
 
-// IDs de canales importantes
+// URLs importantes
 const IMPORTANT_CHANNELS = {
     RULES: '1455687620121198840',
     ANNOUNCEMENTS: '1455687691021848823'
 };
+
+// GIF para la pregunta del Game ID
+const GAME_ID_GIF = 'https://github.com/STE2025LLC/discord-bot/blob/main/ID%20gif.gif?raw=true';
 
 // ID de tu bot (se llenará automáticamente cuando el bot inicie)
 let BOT_ID = '';
@@ -34,31 +36,35 @@ client.once('ready', () => {
     console.log(`✅ Bot logged in as ${client.user.tag}`);
     console.log(`🆔 Bot ID: ${client.user.id}`);
     console.log('🚀 Bot is ready!');
+    console.log(`🎮 Game ID GIF: ${GAME_ID_GIF}`);
+    console.log(`🏰 Allowed server ID: ${ALLOWED_GUILD_ID}`);
     
     // Guardar el ID del bot automáticamente
     BOT_ID = client.user.id;
     
     // VERIFICAR EN QUÉ SERVIDORES ESTÁ EL BOT
     console.log('\n🔍 Checking servers where bot is present:');
+    let foundAllowedServer = false;
+    
     client.guilds.cache.forEach(guild => {
         console.log(`   - ${guild.name} (ID: ${guild.id})`);
         
-        // Si está en un servidor no autorizado
-        if (guild.id !== ALLOWED_GUILD_ID) {
-            console.log(`   ⚠️  WARNING: Bot is in unauthorized server: ${guild.name}`);
-            console.log(`   ❌ This server is NOT allowed. Bot will leave automatically.`);
-            
-            // Intentar salir del servidor no autorizado
-            guild.leave().then(() => {
-                console.log(`   ✅ Left unauthorized server: ${guild.name}`);
-            }).catch(err => {
-                console.log(`   ❌ Could not leave server ${guild.name}:`, err.message);
-            });
+        if (guild.id === ALLOWED_GUILD_ID) {
+            console.log(`   ✅ THIS IS THE ALLOWED SERVER!`);
+            foundAllowedServer = true;
+        } else {
+            console.log(`   ❌ Unauthorized server`);
         }
     });
     
-    console.log(`\n📋 Bot configured for server ID: ${ALLOWED_GUILD_ID}`);
-    console.log(`📋 Available commands:`);
+    if (!foundAllowedServer) {
+        console.log(`\n⚠️ WARNING: Bot is not in the allowed server!`);
+        console.log(`   Please invite the bot to server ID: ${ALLOWED_GUILD_ID}`);
+    } else {
+        console.log(`\n✅ Bot is correctly in the allowed server!`);
+    }
+    
+    console.log(`\n📋 Available commands:`);
     console.log(`   - !register (in DM)`);
     console.log(`   - !changealliance (in DM)`);
     console.log(`📌 Not verified role: "${NOT_VERIFIED_ROLE}"`);
@@ -98,6 +104,10 @@ client.on('guildMemberAdd', async (member) => {
                 console.log(`🔒 Added "${NOT_VERIFIED_ROLE}" role to ${member.user.tag}`);
             } else {
                 console.log(`❌ Role "${NOT_VERIFIED_ROLE}" not found in server!`);
+                console.log(`   Available roles:`);
+                member.guild.roles.cache.forEach(role => {
+                    console.log(`   - ${role.name} (${role.id})`);
+                });
             }
         } catch (roleError) {
             console.error(`❌ Error assigning "${NOT_VERIFIED_ROLE}" role:`, roleError.message);
@@ -303,7 +313,7 @@ client.on('messageCreate', async (message) => {
         if (!isAllowedGuild(message.guild)) {
             console.log(`🚫 Blocked command in unauthorized server: ${message.guild.name}`);
             
-            // Opcional: Enviar mensaje de error
+            // Enviar mensaje de error
             try {
                 await message.reply({
                     content: '❌ **This bot is restricted to a specific server and cannot be used here.**',
@@ -328,6 +338,19 @@ client.on('messageCreate', async (message) => {
             // COMANDO !register
             if (content.toLowerCase() === '!register') {
                 
+                // Verificar si el usuario está en el servidor autorizado
+                const allowedGuild = client.guilds.cache.get(ALLOWED_GUILD_ID);
+                if (!allowedGuild) {
+                    await message.author.send('❌ **Error:** Bot is not connected to the server. Please contact an administrator.');
+                    return;
+                }
+                
+                const member = allowedGuild.members.cache.get(userId);
+                if (!member) {
+                    await message.author.send('❌ **Error:** You are not a member of the authorized server. Please join the server first.');
+                    return;
+                }
+                
                 if (userData.has(userId)) {
                     const data = userData.get(userId);
                     await message.author.send(`Please answer: **${data.currentQuestion}**`);
@@ -345,7 +368,7 @@ client.on('messageCreate', async (message) => {
                 });
                 
                 await message.author.send({
-                    content: '**✅ REGISTRATION STARTED!**\n\n**Question 1/3:**\n**What is your alliance?**\n\nType: **FKIT**, **ISL**, **DNT**, or **TNT**'
+                    content: '**✅ REGISTRATION STARTED!**\n\n**Question 1/3:**\n**What is your alliance?**\n\nType: **FKIT**, **ISL**, **NTF**, or **TNT**'
                 });
                 
                 return;
@@ -355,8 +378,21 @@ client.on('messageCreate', async (message) => {
             if (content.toLowerCase() === '!changealliance') {
                 console.log(`🔄 ${userTag} requested alliance change`);
                 
+                // Verificar si el usuario está en el servidor autorizado
+                const allowedGuild = client.guilds.cache.get(ALLOWED_GUILD_ID);
+                if (!allowedGuild) {
+                    await message.author.send('❌ **Error:** Bot is not connected to the server. Please contact an administrator.');
+                    return;
+                }
+                
+                const member = allowedGuild.members.cache.get(userId);
+                if (!member) {
+                    await message.author.send('❌ **Error:** You are not a member of the authorized server. Please join the server first.');
+                    return;
+                }
+                
                 await message.author.send({
-                    content: '**🔄 ALLIANCE CHANGE REQUESTED**\n\nTo change your alliance, please type your **new alliance**:\n\nType: **FKIT**, **ISL**, **DNT**, or **TNT**\n\n*Note: Your previous alliance role will be automatically removed.*'
+                    content: '**🔄 ALLIANCE CHANGE REQUESTED**\n\nTo change your alliance, please type your **new alliance**:\n\nType: **FKIT**, **ISL**, **NTF**, or **TNT**\n\n*Note: Your previous alliance role will be automatically removed.*'
                 });
                 
                 userData.set(userId, {
@@ -376,8 +412,9 @@ client.on('messageCreate', async (message) => {
                 if (userInfo.step === 1) {
                     const answer = content.toUpperCase();
                     
+                    // CORREGIDO: Las alianzas son FKIT, ISL, NTF, TNT (no DNT)
                     if (!VALID_ALLIANCES.includes(answer)) {
-                        await message.author.send('❌ **Invalid alliance!**\nType: FKIT, ISL, DNT, or TNT');
+                        await message.author.send('❌ **Invalid alliance!**\nType: FKIT, ISL, NTF, or TNT');
                         return;
                     }
                     
@@ -385,8 +422,20 @@ client.on('messageCreate', async (message) => {
                     userInfo.step = 2;
                     userData.set(userId, userInfo);
                     
+                    // **PREGUNTA 2: GAME ID CON GIF**
+                    const gameIdMessage = `✅ **Alliance: ${answer}**\n\n**Question 2/3:**\n**What is your in-game ID?**\n\n`;
+                    
+                    // Crear embed con el GIF
+                    const gameIdEmbed = new EmbedBuilder()
+                        .setColor('#0099ff')
+                        .setTitle('🎮 GAME ID INFORMATION')
+                        .setDescription('**Your in-game ID must be EXACTLY 16 characters long.**\nOnly letters (A-Z) and numbers (0-9) are allowed.\n\n**Example valid IDs:**\n• 1234567890123456\n• ABCDEFGHIJKLMNOP\n• A1B2C3D4E5F6G7H8')
+                        .setImage(GAME_ID_GIF)
+                        .setFooter({ text: 'Enter your 16-character Game ID below' });
+                    
                     await message.author.send({
-                        content: `✅ **Alliance: ${answer}**\n\n**Question 2/3:**\n**What is your in-game ID?**`
+                        content: gameIdMessage,
+                        embeds: [gameIdEmbed]
                     });
                 }
                 
@@ -416,7 +465,7 @@ client.on('messageCreate', async (message) => {
                     userData.set(userId, userInfo);
                     
                     await message.author.send({
-                        content: `✅ **Game ID registered**\n\n**Question 3/3:**\n**What is your in-game nickname?**`
+                        content: `✅ **Game ID registered: ${content}**\n\n**Question 3/3:**\n**What is your in-game nickname?**`
                     });
                 }
                 
@@ -526,7 +575,7 @@ client.on('messageCreate', async (message) => {
                     const newAlliance = content.toUpperCase();
                     
                     if (!VALID_ALLIANCES.includes(newAlliance)) {
-                        await message.author.send('❌ **Invalid alliance!**\nType: FKIT, ISL, DNT, or TNT');
+                        await message.author.send('❌ **Invalid alliance!**\nType: FKIT, ISL, NTF, or TNT');
                         return;
                     }
                     
@@ -638,11 +687,11 @@ client.on('guildCreate', async (guild) => {
         console.log(`   Attempting to leave unauthorized server...`);
         
         try {
-            // Enviar mensaje al dueño del servidor (opcional)
+            // Enviar mensaje al dueño del servidor
             const owner = await guild.fetchOwner();
             if (owner) {
                 try {
-                    await owner.send(`❌ **Bot Restricted**\n\nThis bot (${client.user.tag}) is restricted to a specific server and cannot be used in other servers.\n\nThe bot will now leave your server automatically.\n\nIf you believe this is an error, contact the bot owner.`);
+                    await owner.send(`❌ **Bot Restricted**\n\nThis bot (${client.user.tag}) is restricted to server ID: ${ALLOWED_GUILD_ID} and cannot be used in other servers.\n\nThe bot will now leave your server automatically.\n\nIf you believe this is an error, contact the bot owner.`);
                 } catch (dmError) {
                     // Ignorar si no se puede enviar DM
                 }
@@ -657,6 +706,7 @@ client.on('guildCreate', async (guild) => {
         }
     } else {
         console.log(`✅ Authorized server: ${guild.name}`);
+        console.log(`🎉 Bot is now in the correct server!`);
     }
 });
 
