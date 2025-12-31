@@ -13,9 +13,15 @@ const client = new Client({
 const token = process.env.TOKEN;
 const userData = new Map();
 
+// Lista de alianzas válidas
+const VALID_ALLIANCES = ['FKIT', 'ISL', 'DNT', 'TNT'];
+
 client.once('ready', () => {
     console.log(`✅ Bot logged in as ${client.user.tag}`);
     console.log('🚀 Bot is ready!');
+    console.log(`📋 Available commands:`);
+    console.log(`   - !register (in DM)`);
+    console.log(`   - !changealliance (in DM)`);
 });
 
 client.on('guildMemberAdd', async (member) => {
@@ -46,8 +52,8 @@ client.on('guildMemberAdd', async (member) => {
 });
 
 // FUNCIÓN para guardar en "registers"
-async function saveToRegistersChannel(guild, userInfo) {
-    console.log(`\n💾 Saving to registers channel...`);
+async function saveToRegistersChannel(guild, userInfo, action = 'NEW REGISTRATION') {
+    console.log(`\n💾 Saving to registers channel (${action})...`);
     
     const registerChannel = guild.channels.cache.find(ch => 
         ch.type === 0 && ch.name === 'registers'
@@ -71,43 +77,75 @@ async function saveToRegistersChannel(guild, userInfo) {
     try {
         // Obtener fecha actual en UTC
         const now = new Date();
-        const utcDate = now.toUTCString(); // Formato UTC estándar
-        
-        // Formato alternativo más legible
         const utcFormatted = now.toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
         
-        // Mensaje de texto formateado para el canal de registros
+        // Mensaje de texto formateado
         const registerMessage = `
-📝 **NEW REGISTRATION** 📝
+📝 **${action}** 📝
 
 👤 **Discord User:** ${userInfo.discordTag}
 🆔 **Discord ID:** ${userInfo.discordId}
 🛡️ **Alliance:** ${userInfo.alliance}
 🎮 **Game ID:** ${userInfo.gameId}
 🏷️ **In-Game Nickname:** ${userInfo.nickname}
-📅 **Registration Date (UTC):** ${utcFormatted}
+📅 **Date (UTC):** ${utcFormatted}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         `.trim();
         
         console.log(`📤 Sending to #${registerChannel.name}...`);
         await registerChannel.send(registerMessage);
         
-        console.log(`✅ Registration saved successfully`);
+        console.log(`✅ ${action} saved successfully`);
         return true;
         
     } catch (error) {
         console.error('❌ Error saving to register channel:', error.message);
-        
-        // Método alternativo más simple
-        try {
-            const simpleMessage = `📝 REGISTRATION: ${userInfo.discordTag} | Alliance: ${userInfo.alliance} | Game ID: ${userInfo.gameId} | Nickname: ${userInfo.nickname} | ${new Date().toUTCString()}`;
-            await registerChannel.send(simpleMessage);
-            console.log('✅ Saved with alternative method');
-            return true;
-        } catch (secondError) {
-            console.error('❌ Alternative method also failed:', secondError.message);
+        return false;
+    }
+}
+
+// FUNCIÓN para cambiar alianza de un usuario
+async function changeUserAlliance(userId, newAlliance, guild) {
+    try {
+        const member = guild.members.cache.get(userId);
+        if (!member) {
+            console.log(`❌ Member ${userId} not found in guild`);
             return false;
         }
+        
+        console.log(`🔄 Changing alliance for ${member.user.tag}`);
+        
+        // 1. ELIMINAR roles de alianzas anteriores
+        let removedRoles = [];
+        for (const alliance of VALID_ALLIANCES) {
+            const role = guild.roles.cache.find(r => r.name === alliance);
+            if (role && member.roles.cache.has(role.id)) {
+                await member.roles.remove(role);
+                removedRoles.push(alliance);
+                console.log(`   ➖ Removed role: ${alliance}`);
+            }
+        }
+        
+        // 2. ASIGNAR nuevo rol
+        const newRole = guild.roles.cache.find(r => r.name === newAlliance);
+        if (!newRole) {
+            console.log(`❌ Role ${newAlliance} not found`);
+            return false;
+        }
+        
+        await member.roles.add(newRole);
+        console.log(`   ➕ Added role: ${newAlliance}`);
+        
+        return {
+            success: true,
+            removedRoles: removedRoles,
+            addedRole: newAlliance,
+            memberTag: member.user.tag
+        };
+        
+    } catch (error) {
+        console.error(`❌ Error changing alliance:`, error.message);
+        return false;
     }
 }
 
@@ -122,6 +160,7 @@ client.on('messageCreate', async (message) => {
         console.log(`📩 DM from ${userTag}: "${content}"`);
         
         try {
+            // COMANDO !register
             if (content.toLowerCase() === '!register') {
                 
                 if (userData.has(userId)) {
@@ -147,14 +186,32 @@ client.on('messageCreate', async (message) => {
                 return;
             }
             
+            // COMANDO !changealliance
+            if (content.toLowerCase() === '!changealliance') {
+                console.log(`🔄 ${userTag} requested alliance change`);
+                
+                await message.author.send({
+                    content: '**🔄 ALLIANCE CHANGE REQUESTED**\n\nTo change your alliance, please type your **new alliance**:\n\nType: **FKIT**, **ISL**, **DNT**, or **TNT**\n\n*Note: Your previous alliance role will be automatically removed.*'
+                });
+                
+                userData.set(userId, {
+                    step: 'changing_alliance',
+                    discordTag: userTag,
+                    discordId: userId
+                });
+                
+                return;
+            }
+            
+            // SI YA ESTÁ EN PROCESO
             if (userData.has(userId)) {
                 const userInfo = userData.get(userId);
                 
+                // PROCESO DE REGISTRO NORMAL
                 if (userInfo.step === 1) {
                     const answer = content.toUpperCase();
-                    const validAlliances = ['FKIT', 'ISL', 'DNT', 'TNT'];
                     
-                    if (!validAlliances.includes(answer)) {
+                    if (!VALID_ALLIANCES.includes(answer)) {
                         await message.author.send('❌ **Invalid alliance!**\nType: FKIT, ISL, DNT, or TNT');
                         return;
                     }
@@ -169,7 +226,6 @@ client.on('messageCreate', async (message) => {
                 }
                 
                 else if (userInfo.step === 2) {
-                    // VALIDACIÓN: MÁXIMO 16 CARACTERES
                     if (!content || content.length < 2) {
                         await message.author.send('❌ **Invalid ID!**\nPlease provide a valid in-game ID (minimum 2 characters)');
                         return;
@@ -180,7 +236,6 @@ client.on('messageCreate', async (message) => {
                         return;
                     }
                     
-                    // Validar que solo contenga caracteres válidos
                     if (!/^[a-zA-Z0-9]+$/.test(content)) {
                         await message.author.send('❌ **Invalid characters!**\nGame ID can only contain letters and numbers (no spaces or special characters).');
                         return;
@@ -213,7 +268,7 @@ client.on('messageCreate', async (message) => {
                     console.log(`   Game ID: ${userInfo.gameId}`);
                     console.log(`   Nickname: ${userInfo.nickname}`);
                     
-                    // 1. ASIGNAR ROL
+                    // ASIGNAR ROL
                     let roleAssigned = false;
                     try {
                         const guild = client.guilds.cache.first();
@@ -222,6 +277,17 @@ client.on('messageCreate', async (message) => {
                             if (member) {
                                 const role = guild.roles.cache.find(r => r.name === userInfo.alliance);
                                 if (role) {
+                                    // Eliminar otros roles de alianza primero
+                                    for (const alliance of VALID_ALLIANCES) {
+                                        if (alliance !== userInfo.alliance) {
+                                            const oldRole = guild.roles.cache.find(r => r.name === alliance);
+                                            if (oldRole && member.roles.cache.has(oldRole.id)) {
+                                                await member.roles.remove(oldRole);
+                                                console.log(`   🗑️ Removed old role: ${alliance}`);
+                                            }
+                                        }
+                                    }
+                                    
                                     await member.roles.add(role);
                                     roleAssigned = true;
                                     console.log(`🎖️ Role ${userInfo.alliance} assigned`);
@@ -232,17 +298,17 @@ client.on('messageCreate', async (message) => {
                         console.error('Role error:', roleError.message);
                     }
                     
-                    // 2. GUARDAR EN REGISTROS (silenciosamente)
+                    // GUARDAR EN REGISTROS
                     try {
                         const guild = client.guilds.cache.first();
                         if (guild) {
-                            await saveToRegistersChannel(guild, userInfo);
+                            await saveToRegistersChannel(guild, userInfo, 'NEW REGISTRATION');
                         }
                     } catch (saveError) {
                         console.error('Save error:', saveError.message);
                     }
                     
-                    // 3. CONFIRMACIÓN AL USUARIO
+                    // CONFIRMACIÓN AL USUARIO
                     let confirmationMessage = `✅ **REGISTRATION COMPLETE!** 🎉\n\n`;
                     confirmationMessage += `**Your information has been registered:**\n`;
                     confirmationMessage += `• Alliance: **${userInfo.alliance}**\n`;
@@ -254,17 +320,18 @@ client.on('messageCreate', async (message) => {
                         confirmationMessage += `You now have access to all channels.\n\n`;
                     }
                     
-                    confirmationMessage += `🌍 **Translation Feature:**\nYou can translate any message by reacting with flag emojis:\n🇺🇸 English | 🇪🇸 Spanish | 🇫🇷 French | 🇩🇪 German\n🇮🇹 Italian | 🇵🇹 Portuguese\n\n`;
+                    confirmationMessage += `🌍 **Translation Feature:**\nYou can translate any message by reacting with flag emojis.\n\n`;
+                    confirmationMessage += `🔄 **To change alliance later:** Type \`!changealliance\` in our DMs.\n\n`;
                     confirmationMessage += `Enjoy your stay in the server! 👋`;
                     
                     await message.author.send({
                         content: confirmationMessage
                     });
                     
-                    // 4. LIMPIAR DATOS
+                    // LIMPIAR DATOS
                     userData.delete(userId);
                     
-                    // 5. ANUNCIAR EN BIENVENIDA
+                    // ANUNCIAR EN BIENVENIDA
                     if (roleAssigned) {
                         try {
                             const guild = client.guilds.cache.first();
@@ -281,11 +348,93 @@ client.on('messageCreate', async (message) => {
                         }
                     }
                 }
+                
+                // PROCESO DE CAMBIO DE ALIANZA
+                else if (userInfo.step === 'changing_alliance') {
+                    const newAlliance = content.toUpperCase();
+                    
+                    if (!VALID_ALLIANCES.includes(newAlliance)) {
+                        await message.author.send('❌ **Invalid alliance!**\nType: FKIT, ISL, DNT, or TNT');
+                        return;
+                    }
+                    
+                    console.log(`\n🔄 ${userTag} changing alliance to: ${newAlliance}`);
+                    
+                    // CAMBIAR ALIANZA
+                    try {
+                        const guild = client.guilds.cache.first();
+                        if (guild) {
+                            const result = await changeUserAlliance(userId, newAlliance, guild);
+                            
+                            if (result && result.success) {
+                                // Actualizar información del usuario
+                                userInfo.alliance = newAlliance;
+                                userInfo.step = 'changing_alliance_success';
+                                userData.set(userId, userInfo);
+                                
+                                // Guardar en registros
+                                await saveToRegistersChannel(guild, {
+                                    discordTag: userTag,
+                                    discordId: userId,
+                                    alliance: newAlliance,
+                                    gameId: userInfo.gameId || 'Not provided',
+                                    nickname: userInfo.nickname || 'Not provided'
+                                }, 'ALLIANCE CHANGE');
+                                
+                                // Enviar confirmación
+                                let changeMessage = `✅ **ALLIANCE CHANGED SUCCESSFULLY!**\n\n`;
+                                changeMessage += `**Your new alliance:** **${newAlliance}**\n\n`;
+                                
+                                if (result.removedRoles.length > 0) {
+                                    changeMessage += `**Removed previous roles:** ${result.removedRoles.join(', ')}\n`;
+                                }
+                                
+                                changeMessage += `**Added new role:** ${newAlliance}\n\n`;
+                                changeMessage += `The change has been recorded in the server logs.\n\n`;
+                                changeMessage += `You now have access to the ${newAlliance} alliance channels.`;
+                                
+                                await message.author.send({
+                                    content: changeMessage
+                                });
+                                
+                                console.log(`✅ Alliance changed for ${userTag}: ${result.removedRoles.join(', ')} ➔ ${newAlliance}`);
+                                
+                                // Anunciar en bienvenida (opcional)
+                                try {
+                                    const welcomeChannel = guild.channels.cache.find(ch => 
+                                        ch.type === 0 && ch.name === '👋-welcome'
+                                    );
+                                    if (welcomeChannel) {
+                                        await welcomeChannel.send({
+                                            content: `🔄 <@${userId}> has changed alliance to **${newAlliance}**!`
+                                        });
+                                    }
+                                } catch (e) {
+                                    // Ignorar
+                                }
+                                
+                            } else {
+                                await message.author.send('❌ **Error changing alliance!**\nPlease contact an administrator.');
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error in alliance change:', error.message);
+                        await message.author.send('❌ **An error occurred!**\nPlease try again or contact an administrator.');
+                    }
+                    
+                    // Limpiar datos
+                    userData.delete(userId);
+                }
+                
                 return;
             }
             
+            // MENSAJE NORMAL EN DM
             await message.author.send({
-                content: 'Type `!register` to start registration and get access to all channels.'
+                content: 'Available commands:\n\n' +
+                        '• `!register` - Start registration\n' +
+                        '• `!changealliance` - Change your alliance\n\n' +
+                        'Type one of the commands above to continue.'
             });
             
         } catch (error) {
