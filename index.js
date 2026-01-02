@@ -74,7 +74,8 @@ client.on('guildMemberAdd', async (member) => {
             await welcomeChannel.send('**Hello!** 👋 <@' + member.id + '> Welcome to **' + member.guild.name + '**.\n\nPlease check your DMs to complete registration.');
         }
         
-        await member.send('**Welcome!** 👋\n\nTo complete registration, type:\n\n`!register`\n\nI will ask you 3 simple questions.\n\n*You currently have the "Not verified" role.*\n\n*To change alliance later, type `!changealliance` in this chat.*');
+        await member.send('**Welcome!** 👋\n\nTo complete registration, type:\n\n```!register```\n\nI will ask you 3 simple questions.\n\n*You currently have the "Not verified" role.*');
+    } catch (error) {
         console.log('Error in guildMemberAdd: ' + error.message);
     }
 });
@@ -359,7 +360,8 @@ client.on('messageCreate', async (message) => {
                     confirmationMessage += '**Important:**\n';
                     confirmationMessage += 'Read <#' + IMPORTANT_CHANNELS.RULES + '> and <#' + IMPORTANT_CHANNELS.ANNOUNCEMENTS + '>\n\n';
                     
-                    confirmationMessage += '**To change your alliance later:** Write `!changealliance` in this chat with <@' + BOT_ID + '>\n\n';
+                    confirmationMessage += '**To change alliance later:**\n';
+                    confirmationMessage += 'Write `!changealliance` in DM.\n\n';
                     
                     confirmationMessage += 'Enjoy your stay!';
                     
