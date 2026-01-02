@@ -1,3 +1,5 @@
+[file name]: index.js
+[file content begin]
 const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 
 const client = new Client({
@@ -11,7 +13,8 @@ const client = new Client({
 });
 
 const token = process.env.TOKEN;
-const userData = new Map();
+const userData = new Map(); // Para datos temporales durante el registro
+const registeredUsers = new Map(); // ✨ NUEVO: Para almacenar datos permanentes de usuarios registrados
 
 // === CONFIGURACIÓN DE SEGURIDAD ===
 const ALLOWED_GUILD_ID = '1455659993725407354'; // TU ID CORRECTO DE SERVIDOR
@@ -67,6 +70,7 @@ client.once('ready', () => {
     console.log(`   - !register (in DM)`);
     console.log(`   - !changealliance (in DM)`);
     console.log(`📌 Not verified role: "${NOT_VERIFIED_ROLE}"`);
+    console.log(`👥 Registered users in memory: ${registeredUsers.size}`); // ✨ NUEVO: Mostrar cantidad de usuarios registrados
 });
 
 // === FUNCIÓN PARA VERIFICAR SERVIDOR ===
@@ -142,6 +146,7 @@ async function saveToRegistersChannel(guild, userInfo, action = 'NEW REGISTRATIO
     }
     
     console.log(`\n💾 Saving to registers channel (${action})...`);
+    console.log(`   User: ${userInfo.discordTag} | Game ID: ${userInfo.gameId} | Nickname: ${userInfo.nickname}`);
     
     const registerChannel = guild.channels.cache.find(ch => 
         ch.type === 0 && ch.name === 'registers'
@@ -360,14 +365,30 @@ client.on('messageCreate', async (message) => {
             if (content.toLowerCase() === '!changealliance') {
                 console.log(`🔄 ${userTag} requested alliance change`);
                 
+                // ✨ NUEVO: Verificar si el usuario ya está registrado
+                const existingUserData = registeredUsers.get(userId);
+                
+                let messageContent = '**🔄 ALLIANCE CHANGE REQUESTED**\n\nTo change your alliance, please type your **new alliance**:\n\nType: **FKIT**, **ISL**, **DNT**, or **TNT**\n\n*Note: Your previous alliance role will be automatically removed.*';
+                
+                if (existingUserData) {
+                    messageContent += `\n\n📋 **Your current registration data:**\n`;
+                    messageContent += `• Game ID: \`${existingUserData.gameId}\`\n`;
+                    messageContent += `• Nickname: \`${existingUserData.nickname}\`\n`;
+                    messageContent += `• Current Alliance: \`${existingUserData.alliance || 'None'}\``;
+                }
+                
                 await message.author.send({
-                    content: '**🔄 ALLIANCE CHANGE REQUESTED**\n\nTo change your alliance, please type your **new alliance**:\n\nType: **FKIT**, **ISL**, **DNT**, or **TNT**\n\n*Note: Your previous alliance role will be automatically removed.*'
+                    content: messageContent
                 });
                 
                 userData.set(userId, {
                     step: 'changing_alliance',
                     discordTag: userTag,
-                    discordId: userId
+                    discordId: userId,
+                    // ✨ NUEVO: Cargar datos existentes si los hay
+                    gameId: existingUserData?.gameId || '',
+                    nickname: existingUserData?.nickname || '',
+                    alliance: existingUserData?.alliance || ''
                 });
                 
                 return;
@@ -455,6 +476,18 @@ client.on('messageCreate', async (message) => {
                     console.log(`   Game ID: ${userInfo.gameId}`);
                     console.log(`   Nickname: ${userInfo.nickname}`);
                     
+                    // ✨ NUEVO: Guardar datos permanentemente
+                    registeredUsers.set(userId, {
+                        alliance: userInfo.alliance,
+                        gameId: userInfo.gameId,
+                        nickname: userInfo.nickname,
+                        discordTag: userInfo.discordTag,
+                        discordId: userInfo.discordId,
+                        registeredAt: new Date().toISOString()
+                    });
+                    
+                    console.log(`💾 User data saved permanently for ${userTag}`);
+                    
                     // COMPLETAR VERIFICACIÓN (solo en servidor autorizado)
                     let verificationResult = false;
                     try {
@@ -517,7 +550,7 @@ client.on('messageCreate', async (message) => {
                         content: confirmationMessage
                     });
                     
-                    // LIMPIAR DATOS
+                    // LIMPIAR DATOS TEMPORALES
                     userData.delete(userId);
                     
                     // ANUNCIAR EN BIENVENIDA (solo en servidor autorizado)
@@ -549,6 +582,23 @@ client.on('messageCreate', async (message) => {
                     
                     console.log(`\n🔄 ${userTag} changing alliance to: ${newAlliance}`);
                     
+                    // ✨ NUEVO: Obtener datos completos del usuario
+                    const userFullInfo = {
+                        discordTag: userTag,
+                        discordId: userId,
+                        alliance: newAlliance,
+                        gameId: userInfo.gameId || 'Not provided',
+                        nickname: userInfo.nickname || 'Not provided'
+                    };
+                    
+                    // Si tenemos datos almacenados permanentemente, usarlos
+                    const storedData = registeredUsers.get(userId);
+                    if (storedData) {
+                        userFullInfo.gameId = storedData.gameId;
+                        userFullInfo.nickname = storedData.nickname;
+                        console.log(`   Using stored data: Game ID: ${storedData.gameId}, Nickname: ${storedData.nickname}`);
+                    }
+                    
                     // CAMBIAR ALIANZA (solo en servidor autorizado)
                     try {
                         const guild = client.guilds.cache.get(ALLOWED_GUILD_ID);
@@ -556,19 +606,16 @@ client.on('messageCreate', async (message) => {
                             const result = await changeUserAlliance(userId, newAlliance, guild);
                             
                             if (result && result.success) {
-                                // Actualizar información del usuario
-                                userInfo.alliance = newAlliance;
-                                userInfo.step = 'changing_alliance_success';
-                                userData.set(userId, userInfo);
+                                // ✨ NUEVO: Actualizar datos almacenados permanentemente
+                                if (storedData) {
+                                    storedData.alliance = newAlliance;
+                                    storedData.updatedAt = new Date().toISOString();
+                                    registeredUsers.set(userId, storedData);
+                                    console.log(`💾 Updated permanent storage for ${userTag}`);
+                                }
                                 
-                                // Guardar en registros
-                                await saveToRegistersChannel(guild, {
-                                    discordTag: userTag,
-                                    discordId: userId,
-                                    alliance: newAlliance,
-                                    gameId: userInfo.gameId || 'Not provided',
-                                    nickname: userInfo.nickname || 'Not provided'
-                                }, 'ALLIANCE CHANGE');
+                                // Guardar en registros con datos completos
+                                await saveToRegistersChannel(guild, userFullInfo, 'ALLIANCE CHANGE');
                                 
                                 // Enviar confirmación
                                 let changeMessage = `✅ **ALLIANCE CHANGED SUCCESSFULLY!**\n\n`;
@@ -579,6 +626,14 @@ client.on('messageCreate', async (message) => {
                                 }
                                 
                                 changeMessage += `**Added new role:** ${newAlliance}\n\n`;
+                                
+                                // ✨ NUEVO: Mostrar datos del juego en el mensaje de confirmación
+                                if (userFullInfo.gameId !== 'Not provided') {
+                                    changeMessage += `📋 **Your game data:**\n`;
+                                    changeMessage += `• Game ID: \`${userFullInfo.gameId}\`\n`;
+                                    changeMessage += `• Nickname: \`${userFullInfo.nickname}\`\n\n`;
+                                }
+                                
                                 changeMessage += `The change has been recorded in the server logs.\n\n`;
                                 changeMessage += `You now have access to the ${newAlliance} alliance channels.\n\n`;
                                 changeMessage += `📢 **Remember:**\nRead <#${IMPORTANT_CHANNELS.ANNOUNCEMENTS}> for server updates.`;
@@ -614,7 +669,7 @@ client.on('messageCreate', async (message) => {
                         await message.author.send('❌ **An error occurred!**\nPlease try again or contact an administrator.');
                     }
                     
-                    // Limpiar datos
+                    // Limpiar datos temporales
                     userData.delete(userId);
                 }
                 
@@ -694,3 +749,4 @@ client.login(token)
         console.error('❌ Login failed:', error.message);
         process.exit(1);
     });
+[file content end]
