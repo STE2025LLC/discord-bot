@@ -361,7 +361,7 @@ client.on('messageCreate', async (message) => {
                     confirmationMessage += 'Read <#' + IMPORTANT_CHANNELS.RULES + '> and <#' + IMPORTANT_CHANNELS.ANNOUNCEMENTS + '>\n\n';
                     
                     confirmationMessage += '**To change alliance later:**\n';
-                    confirmationMessage += 'Write `!changealliance` in DM.\n\n';
+                    confirmationMessage += '```bash\n!changealliance\n```\n\n';
                     
                     confirmationMessage += 'Enjoy your stay!';
                     
