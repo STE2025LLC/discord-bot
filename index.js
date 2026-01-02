@@ -13,72 +13,61 @@ const client = new Client({
 });
 
 const token = process.env.TOKEN;
-const userData = new Map(); // Para datos temporales durante el registro
-const registeredUsers = new Map(); // ✨ NUEVO: Para almacenar datos permanentes de usuarios registrados
+const userData = new Map();
+const registeredUsers = new Map();
 
-// === CONFIGURACIÓN DE SEGURIDAD ===
-const ALLOWED_GUILD_ID = '1455659993725407354'; // TU ID CORRECTO DE SERVIDOR
-
-// Lista de alianzas válidas
+const ALLOWED_GUILD_ID = '1455659993725407354';
 const VALID_ALLIANCES = ['FKIT', 'ISL', 'DNT', 'TNT'];
 const NOT_VERIFIED_ROLE = 'Not verified';
 
-// URLs importantes
 const IMPORTANT_CHANNELS = {
     RULES: '1455687620121198840',
     ANNOUNCEMENTS: '1455687691021848823'
 };
 
-// GIF para la pregunta del Game ID
 const GAME_ID_GIF = 'https://github.com/STE2025LLC/discord-bot/blob/main/ID%20gif.gif?raw=true';
 
-// ID de tu bot (se llenará automáticamente cuando el bot inicie)
 let BOT_ID = '';
 
 client.once('ready', () => {
-    console.log(`✅ Bot logged in as ${client.user.tag}`);
-    console.log(`🆔 Bot ID: ${client.user.id}`);
-    console.log('🚀 Bot is ready!');
-    console.log(`🎮 Game ID GIF: ${GAME_ID_GIF}`);
-    console.log(`🏰 Allowed server ID: ${ALLOWED_GUILD_ID}`);
+    console.log(`Bot logged in as ${client.user.tag}`);
+    console.log(`Bot ID: ${client.user.id}`);
+    console.log('Bot is ready!');
+    console.log(`Game ID GIF: ${GAME_ID_GIF}`);
+    console.log(`Allowed server ID: ${ALLOWED_GUILD_ID}`);
     
-    // Guardar el ID del bot automáticamente
     BOT_ID = client.user.id;
     
-    // VERIFICAR EN QUÉ SERVIDORES ESTÁ EL BOT
-    console.log('\n🔍 Checking servers where bot is present:');
+    console.log('\nChecking servers where bot is present:');
     client.guilds.cache.forEach(guild => {
         console.log(`   - ${guild.name} (ID: ${guild.id})`);
         
-        // Si está en un servidor no autorizado
         if (guild.id !== ALLOWED_GUILD_ID) {
-            console.log(`   ⚠️  WARNING: Bot is in unauthorized server: ${guild.name}`);
-            console.log(`   ❌ This server is NOT allowed. Bot will leave automatically.`);
+            console.log(`   WARNING: Bot is in unauthorized server: ${guild.name}`);
+            console.log(`   This server is NOT allowed. Bot will leave automatically.`);
             
-            // Intentar salir del servidor no autorizado
             guild.leave().then(() => {
-                console.log(`   ✅ Left unauthorized server: ${guild.name}`);
+                console.log(`   Left unauthorized server: ${guild.name}`);
             }).catch(err => {
-                console.log(`   ❌ Could not leave server ${guild.name}:`, err.message);
+                console.log(`   Could not leave server ${guild.name}:`, err.message);
             });
         } else {
-            console.log(`   ✅ Authorized server: ${guild.name}`);
+            console.log(`   Authorized server: ${guild.name}`);
         }
     });
     
-    console.log(`\n📋 Available commands:`);
+    console.log(`\nAvailable commands:`);
     console.log(`   - !register (in DM)`);
     console.log(`   - !changealliance (in DM)`);
-    console.log(`📌 Not verified role: "${NOT_VERIFIED_ROLE}"`);
-    console.log(`👥 Registered users in memory: ${registeredUsers.size}`); // ✨ NUEVO: Mostrar cantidad de usuarios registrados
+    console.log(`Not verified role: "${NOT_VERIFIED_ROLE}"`);
+    console.log(`Registered users in memory: ${registeredUsers.size}`);
 });
 
-// === FUNCIÓN PARA VERIFICAR SERVIDOR ===
 function isAllowedGuild(guild) {
     if (!guild) return false;
     
     if (guild.id !== ALLOWED_GUILD_ID) {
-        console.log(`🚫 ACCESS DENIED: Bot used in unauthorized server: ${guild.name} (ID: ${guild.id})`);
+        console.log(`ACCESS DENIED: Bot used in unauthorized server: ${guild.name} (ID: ${guild.id})`);
         console.log(`   Allowed server ID: ${ALLOWED_GUILD_ID}`);
         return false;
     }
@@ -87,16 +76,14 @@ function isAllowedGuild(guild) {
 }
 
 client.on('guildMemberAdd', async (member) => {
-    // Verificar si es el servidor autorizado
     if (!isAllowedGuild(member.guild)) {
-        console.log(`❌ Blocked guildMemberAdd in unauthorized server: ${member.guild.name}`);
+        console.log(`Blocked guildMemberAdd in unauthorized server: ${member.guild.name}`);
         return;
     }
     
     try {
-        console.log(`👤 New member in ${member.guild.name}: ${member.user.tag}`);
+        console.log(`New member in ${member.guild.name}: ${member.user.tag}`);
         
-        // ASIGNAR ROL "Not verified" automáticamente
         try {
             const notVerifiedRole = member.guild.roles.cache.find(r => 
                 r.name === NOT_VERIFIED_ROLE
@@ -104,15 +91,14 @@ client.on('guildMemberAdd', async (member) => {
             
             if (notVerifiedRole) {
                 await member.roles.add(notVerifiedRole);
-                console.log(`🔒 Added "${NOT_VERIFIED_ROLE}" role to ${member.user.tag}`);
+                console.log(`Added "${NOT_VERIFIED_ROLE}" role to ${member.user.tag}`);
             } else {
-                console.log(`❌ Role "${NOT_VERIFIED_ROLE}" not found in server!`);
+                console.log(`Role "${NOT_VERIFIED_ROLE}" not found in server!`);
             }
         } catch (roleError) {
-            console.error(`❌ Error assigning "${NOT_VERIFIED_ROLE}" role:`, roleError.message);
+            console.error(`Error assigning "${NOT_VERIFIED_ROLE}" role:`, roleError.message);
         }
         
-        // Mensaje en canal de bienvenida
         const welcomeChannel = member.guild.channels.cache.find(ch => 
             ch.type === 0 && ch.name === '👋-welcome'
         );
@@ -123,13 +109,12 @@ client.on('guildMemberAdd', async (member) => {
             });
         }
         
-        // Enviar DM
         try {
             await member.send({
                 content: '**Welcome!** 👋\n\nTo complete your registration and get access to all channels, type:\n\n```!register```\n\nI will ask you 3 simple questions about your game account.\n\n*You currently have the "Not verified" role until you complete registration.*'
             });
         } catch (error) {
-            console.log(`⚠️ Could not DM ${member.user.tag}`);
+            console.log(`Could not DM ${member.user.tag}`);
         }
         
     } catch (error) {
@@ -137,15 +122,13 @@ client.on('guildMemberAdd', async (member) => {
     }
 });
 
-// FUNCIÓN para guardar en "registers"
 async function saveToRegistersChannel(guild, userInfo, action = 'NEW REGISTRATION') {
-    // Verificar servidor primero
     if (!isAllowedGuild(guild)) {
-        console.log(`❌ Blocked saveToRegistersChannel in unauthorized server`);
+        console.log(`Blocked saveToRegistersChannel in unauthorized server`);
         return false;
     }
     
-    console.log(`\n💾 Saving to registers channel (${action})...`);
+    console.log(`\nSaving to registers channel (${action})...`);
     console.log(`   User: ${userInfo.discordTag} | Game ID: ${userInfo.gameId} | Nickname: ${userInfo.nickname}`);
     
     const registerChannel = guild.channels.cache.find(ch => 
@@ -153,26 +136,24 @@ async function saveToRegistersChannel(guild, userInfo, action = 'NEW REGISTRATIO
     );
     
     if (!registerChannel) {
-        console.log('❌ No "registers" channel found');
+        console.log('No "registers" channel found');
         return false;
     }
     
-    console.log(`✅ Found: #${registerChannel.name}`);
+    console.log(`Found: #${registerChannel.name}`);
     
     const botMember = guild.members.cache.get(client.user.id);
     const permissions = registerChannel.permissionsFor(botMember);
     
     if (!permissions.has('ViewChannel') || !permissions.has('SendMessages')) {
-        console.log('❌ Bot cannot write to this channel');
+        console.log('Bot cannot write to this channel');
         return false;
     }
     
     try {
-        // Obtener fecha actual en UTC
         const now = new Date();
         const utcFormatted = now.toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
         
-        // **MENSAJE DE TEXTO CON MENCIÓN AL USUARIO**
         const registerMessage = `
 📝 **${action}** 📝
 
@@ -185,55 +166,51 @@ async function saveToRegistersChannel(guild, userInfo, action = 'NEW REGISTRATIO
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         `.trim();
         
-        console.log(`📤 Sending to #${registerChannel.name}...`);
+        console.log(`Sending to #${registerChannel.name}...`);
         await registerChannel.send(registerMessage);
         
-        console.log(`✅ ${action} saved successfully with user mention`);
+        console.log(`${action} saved successfully with user mention`);
         return true;
         
     } catch (error) {
-        console.error('❌ Error saving to register channel:', error.message);
+        console.error('Error saving to register channel:', error.message);
         return false;
     }
 }
 
-// FUNCIÓN para cambiar alianza de un usuario
 async function changeUserAlliance(userId, newAlliance, guild) {
-    // Verificar servidor primero
     if (!isAllowedGuild(guild)) {
-        console.log(`❌ Blocked changeUserAlliance in unauthorized server`);
+        console.log(`Blocked changeUserAlliance in unauthorized server`);
         return false;
     }
     
     try {
         const member = guild.members.cache.get(userId);
         if (!member) {
-            console.log(`❌ Member ${userId} not found in guild`);
+            console.log(`Member ${userId} not found in guild`);
             return false;
         }
         
-        console.log(`🔄 Changing alliance for ${member.user.tag}`);
+        console.log(`Changing alliance for ${member.user.tag}`);
         
-        // 1. ELIMINAR roles de alianzas anteriores
         let removedRoles = [];
         for (const alliance of VALID_ALLIANCES) {
             const role = guild.roles.cache.find(r => r.name === alliance);
             if (role && member.roles.cache.has(role.id)) {
                 await member.roles.remove(role);
                 removedRoles.push(alliance);
-                console.log(`   ➖ Removed role: ${alliance}`);
+                console.log(`   Removed role: ${alliance}`);
             }
         }
         
-        // 2. ASIGNAR nuevo rol
         const newRole = guild.roles.cache.find(r => r.name === newAlliance);
         if (!newRole) {
-            console.log(`❌ Role ${newAlliance} not found`);
+            console.log(`Role ${newAlliance} not found`);
             return false;
         }
         
         await member.roles.add(newRole);
-        console.log(`   ➕ Added role: ${newAlliance}`);
+        console.log(`   Added role: ${newAlliance}`);
         
         return {
             success: true,
@@ -243,53 +220,48 @@ async function changeUserAlliance(userId, newAlliance, guild) {
         };
         
     } catch (error) {
-        console.error(`❌ Error changing alliance:`, error.message);
+        console.error(`Error changing alliance:`, error.message);
         return false;
     }
 }
 
-// FUNCIÓN para completar verificación
 async function completeVerification(userId, userInfo, guild) {
-    // Verificar servidor primero
     if (!isAllowedGuild(guild)) {
-        console.log(`❌ Blocked completeVerification in unauthorized server`);
+        console.log(`Blocked completeVerification in unauthorized server`);
         return false;
     }
     
     try {
         const member = guild.members.cache.get(userId);
         if (!member) {
-            console.log(`❌ Member ${userId} not found in guild`);
+            console.log(`Member ${userId} not found in guild`);
             return false;
         }
         
-        console.log(`✅ Completing verification for ${member.user.tag}`);
+        console.log(`Completing verification for ${member.user.tag}`);
         
-        // 1. ELIMINAR rol "Not verified"
         const notVerifiedRole = guild.roles.cache.find(r => r.name === NOT_VERIFIED_ROLE);
         if (notVerifiedRole && member.roles.cache.has(notVerifiedRole.id)) {
             await member.roles.remove(notVerifiedRole);
-            console.log(`   ➖ Removed "${NOT_VERIFIED_ROLE}" role`);
+            console.log(`   Removed "${NOT_VERIFIED_ROLE}" role`);
         }
         
-        // 2. ELIMINAR otros roles de alianza
         for (const alliance of VALID_ALLIANCES) {
             const role = guild.roles.cache.find(r => r.name === alliance);
             if (role && member.roles.cache.has(role.id)) {
                 await member.roles.remove(role);
-                console.log(`   ➖ Removed old alliance role: ${alliance}`);
+                console.log(`   Removed old alliance role: ${alliance}`);
             }
         }
         
-        // 3. ASIGNAR nuevo rol de alianza
         const newRole = guild.roles.cache.find(r => r.name === userInfo.alliance);
         if (!newRole) {
-            console.log(`❌ Role ${userInfo.alliance} not found`);
+            console.log(`Role ${userInfo.alliance} not found`);
             return false;
         }
         
         await member.roles.add(newRole);
-        console.log(`   ➕ Added alliance role: ${userInfo.alliance}`);
+        console.log(`   Added alliance role: ${userInfo.alliance}`);
         
         return {
             success: true,
@@ -299,7 +271,7 @@ async function completeVerification(userId, userInfo, guild) {
         };
         
     } catch (error) {
-        console.error(`❌ Error completing verification:`, error.message);
+        console.error(`Error completing verification:`, error.message);
         return false;
     }
 }
@@ -307,35 +279,29 @@ async function completeVerification(userId, userInfo, guild) {
 client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
     
-    // === BLOQUEAR COMANDOS EN SERVIDORES NO AUTORIZADOS ===
     if (message.guild) {
-        // Si es un mensaje en servidor y NO es el servidor autorizado
         if (!isAllowedGuild(message.guild)) {
-            console.log(`🚫 Blocked command in unauthorized server: ${message.guild.name}`);
+            console.log(`Blocked command in unauthorized server: ${message.guild.name}`);
             
-            // Opcional: Enviar mensaje de error
             try {
                 await message.reply({
-                    content: '❌ **This bot is restricted to a specific server and cannot be used here.**',
+                    content: 'This bot is restricted to a specific server and cannot be used here.',
                     allowedMentions: { repliedUser: false }
                 });
             } catch (e) {
-                // Ignorar si no puede enviar mensaje
             }
             return;
         }
     }
     
     if (!message.guild) {
-        // PARA DMs, necesitamos verificar si el usuario está en el servidor autorizado
         const userId = message.author.id;
         const userTag = message.author.tag;
         const content = message.content.trim();
         
-        console.log(`📩 DM from ${userTag}: "${content}"`);
+        console.log(`DM from ${userTag}: "${content}"`);
         
         try {
-            // COMANDO !register
             if (content.toLowerCase() === '!register') {
                 
                 if (userData.has(userId)) {
@@ -355,23 +321,21 @@ client.on('messageCreate', async (message) => {
                 });
                 
                 await message.author.send({
-                    content: '**✅ REGISTRATION STARTED!**\n\n**Question 1/3:**\n**What is your alliance?**\n\nType: **FKIT**, **ISL**, **DNT**, or **TNT**'
+                    content: '**REGISTRATION STARTED!**\n\n**Question 1/3:**\n**What is your alliance?**\n\nType: **FKIT**, **ISL**, **DNT**, or **TNT**'
                 });
                 
                 return;
             }
             
-            // COMANDO !changealliance
             if (content.toLowerCase() === '!changealliance') {
-                console.log(`🔄 ${userTag} requested alliance change`);
+                console.log(`${userTag} requested alliance change`);
                 
-                // ✨ NUEVO: Verificar si el usuario ya está registrado
                 const existingUserData = registeredUsers.get(userId);
                 
-                let messageContent = '**🔄 ALLIANCE CHANGE REQUESTED**\n\nTo change your alliance, please type your **new alliance**:\n\nType: **FKIT**, **ISL**, **DNT**, or **TNT**\n\n*Note: Your previous alliance role will be automatically removed.*';
+                let messageContent = '**ALLIANCE CHANGE REQUESTED**\n\nTo change your alliance, please type your **new alliance**:\n\nType: **FKIT**, **ISL**, **DNT**, or **TNT**\n\n*Note: Your previous alliance role will be automatically removed.*';
                 
                 if (existingUserData) {
-                    messageContent += `\n\n📋 **Your current registration data:**\n`;
+                    messageContent += '\n\n**Your current registration data:**\n';
                     messageContent += `• Game ID: \`${existingUserData.gameId}\`\n`;
                     messageContent += `• Nickname: \`${existingUserData.nickname}\`\n`;
                     messageContent += `• Current Alliance: \`${existingUserData.alliance || 'None'}\``;
@@ -385,7 +349,6 @@ client.on('messageCreate', async (message) => {
                     step: 'changing_alliance',
                     discordTag: userTag,
                     discordId: userId,
-                    // ✨ NUEVO: Cargar datos existentes si los hay
                     gameId: existingUserData?.gameId || '',
                     nickname: existingUserData?.nickname || '',
                     alliance: existingUserData?.alliance || ''
@@ -394,16 +357,14 @@ client.on('messageCreate', async (message) => {
                 return;
             }
             
-            // SI YA ESTÁ EN PROCESO
             if (userData.has(userId)) {
                 const userInfo = userData.get(userId);
                 
-                // PROCESO DE REGISTRO NORMAL
                 if (userInfo.step === 1) {
                     const answer = content.toUpperCase();
                     
                     if (!VALID_ALLIANCES.includes(answer)) {
-                        await message.author.send('❌ **Invalid alliance!**\nType: FKIT, ISL, DNT, or TNT');
+                        await message.author.send('**Invalid alliance!**\nType: FKIT, ISL, DNT, or TNT');
                         return;
                     }
                     
@@ -411,13 +372,11 @@ client.on('messageCreate', async (message) => {
                     userInfo.step = 2;
                     userData.set(userId, userInfo);
                     
-                    // **PREGUNTA 2: GAME ID CON GIF** (SIN EJEMPLOS)
-                    const gameIdMessage = `✅ **Alliance: ${answer}**\n\n**Question 2/3:**\n**What is your in-game ID?**\n\n`;
+                    const gameIdMessage = `**Alliance: ${answer}**\n\n**Question 2/3:**\n**What is your in-game ID?**\n\n`;
                     
-                    // Crear embed con el GIF (SIN EJEMPLOS)
                     const gameIdEmbed = new EmbedBuilder()
                         .setColor('#0099ff')
-                        .setTitle('🎮 GAME ID')
+                        .setTitle('GAME ID')
                         .setDescription('**Your in-game ID must be EXACTLY 16 characters long.**\nOnly letters (A-Z) and numbers (0-9) are allowed.\nNo spaces or special characters.')
                         .setImage(GAME_ID_GIF)
                         .setFooter({ text: 'Enter your 16-character Game ID below' });
@@ -429,23 +388,18 @@ client.on('messageCreate', async (message) => {
                 }
                 
                 else if (userInfo.step === 2) {
-                    // **VALIDACIÓN EXACTA: DEBE SER 16 CARACTERES**
-                    
-                    // Primero verificar si está vacío
                     if (!content) {
-                        await message.author.send('❌ **Please provide your in-game ID.**');
+                        await message.author.send('**Please provide your in-game ID.**');
                         return;
                     }
                     
-                    // **DEBE SER EXACTAMENTE 16 CARACTERES**
                     if (content.length !== 16) {
-                        await message.author.send(`❌ **Invalid Game ID length!**\n\n**Your ID has ${content.length} characters.**\n**Required: EXACTLY 16 characters.**\n\nPlease provide a valid 16-character Game ID.`);
+                        await message.author.send(`**Invalid Game ID length!**\n\n**Your ID has ${content.length} characters.**\n**Required: EXACTLY 16 characters.**\n\nPlease provide a valid 16-character Game ID.`);
                         return;
                     }
                     
-                    // Validar que solo contenga caracteres válidos (números y letras)
                     if (!/^[a-zA-Z0-9]+$/.test(content)) {
-                        await message.author.send('❌ **Invalid characters!**\nGame ID can only contain letters and numbers (no spaces or special characters).');
+                        await message.author.send('**Invalid characters!**\nGame ID can only contain letters and numbers (no spaces or special characters).');
                         return;
                     }
                     
@@ -454,29 +408,28 @@ client.on('messageCreate', async (message) => {
                     userData.set(userId, userInfo);
                     
                     await message.author.send({
-                        content: `✅ **Game ID registered**\n\n**Question 3/3:**\n**What is your in-game nickname?**`
+                        content: `**Game ID registered**\n\n**Question 3/3:**\n**What is your in-game nickname?**`
                     });
                 }
                 
                 else if (userInfo.step === 3) {
                     if (!content || content.length < 2) {
-                        await message.author.send('❌ **Invalid nickname!**\nPlease provide a valid in-game nickname (minimum 2 characters)');
+                        await message.author.send('**Invalid nickname!**\nPlease provide a valid in-game nickname (minimum 2 characters)');
                         return;
                     }
                     
                     if (content.length > 32) {
-                        await message.author.send(`❌ **Nickname too long!**\nMaximum 32 characters allowed.\n\nYour nickname has **${content.length}** characters.`);
+                        await message.author.send(`**Nickname too long!**\nMaximum 32 characters allowed.\n\nYour nickname has **${content.length}** characters.`);
                         return;
                     }
                     
                     userInfo.nickname = content;
                     
-                    console.log(`\n📋 ${userTag} completed registration!`);
+                    console.log(`\n${userTag} completed registration!`);
                     console.log(`   Alliance: ${userInfo.alliance}`);
                     console.log(`   Game ID: ${userInfo.gameId}`);
                     console.log(`   Nickname: ${userInfo.nickname}`);
                     
-                    // ✨ NUEVO: Guardar datos permanentemente
                     registeredUsers.set(userId, {
                         alliance: userInfo.alliance,
                         gameId: userInfo.gameId,
@@ -486,9 +439,8 @@ client.on('messageCreate', async (message) => {
                         registeredAt: new Date().toISOString()
                     });
                     
-                    console.log(`💾 User data saved permanently for ${userTag}`);
+                    console.log(`User data saved permanently for ${userTag}`);
                     
-                    // COMPLETAR VERIFICACIÓN (solo en servidor autorizado)
                     let verificationResult = false;
                     try {
                         const guild = client.guilds.cache.get(ALLOWED_GUILD_ID);
@@ -496,14 +448,13 @@ client.on('messageCreate', async (message) => {
                             const result = await completeVerification(userId, userInfo, guild);
                             verificationResult = result && result.success;
                         } else {
-                            console.log(`❌ Allowed guild not found: ${ALLOWED_GUILD_ID}`);
-                            await message.author.send('❌ **Error:** Cannot find the server. Please contact an administrator.');
+                            console.log(`Allowed guild not found: ${ALLOWED_GUILD_ID}`);
+                            await message.author.send('**Error:** Cannot find the server. Please contact an administrator.');
                         }
                     } catch (verifyError) {
                         console.error('Verification error:', verifyError.message);
                     }
                     
-                    // GUARDAR EN REGISTROS (solo en servidor autorizado)
                     try {
                         const guild = client.guilds.cache.get(ALLOWED_GUILD_ID);
                         if (guild) {
@@ -513,47 +464,42 @@ client.on('messageCreate', async (message) => {
                         console.error('Save error:', saveError.message);
                     }
                     
-                    // CONFIRMACIÓN AL USUARIO
-                    let confirmationMessage = `✅ **REGISTRATION COMPLETE!** 🎉\n\n`;
+                    let confirmationMessage = `**REGISTRATION COMPLETE!**\n\n`;
                     confirmationMessage += `**Your information has been registered:**\n`;
                     confirmationMessage += `• Alliance: **${userInfo.alliance}**\n`;
                     confirmationMessage += `• Game ID: **${userInfo.gameId}**\n`;
                     confirmationMessage += `• Nickname: **${userInfo.nickname}**\n\n`;
                     
                     if (verificationResult) {
-                        confirmationMessage += `🔓 **Verification completed!**\n`;
+                        confirmationMessage += `**Verification completed!**\n`;
                         confirmationMessage += `• Removed: **"${NOT_VERIFIED_ROLE}"** role\n`;
                         confirmationMessage += `• Added: **${userInfo.alliance}** role\n\n`;
                         confirmationMessage += `You now have full access to all channels.\n\n`;
                     } else {
-                        confirmationMessage += `⚠️ **Role assignment may have failed.**\n`;
+                        confirmationMessage += `**Role assignment may have failed.**\n`;
                         confirmationMessage += `Please contact an administrator if you don't have access.\n\n`;
                     }
                     
-                    confirmationMessage += `🌍 **Translation Feature:**\nYou can translate any message by reacting with flag emojis.\n\n`;
+                    confirmationMessage += `**Translation Feature:**\nYou can translate any message by reacting with flag emojis.\n\n`;
                     
-                    // **INFORMACIÓN IMPORTANTE DE LOS CANALES**
-                    confirmationMessage += `📢 **Important:**\n`;
+                    confirmationMessage += `**Important:**\n`;
                     confirmationMessage += `It's very important that you read <#${IMPORTANT_CHANNELS.RULES}> and <#${IMPORTANT_CHANNELS.ANNOUNCEMENTS}>\n\n`;
                     
-                    // **MENCIÓN ESPECÍFICA PARA CAMBIAR ALIANZA**
-                    confirmationMessage += `🔄 **To change your alliance later:**\n`;
+                    confirmationMessage += `**To change your alliance later:**\n`;
                     if (BOT_ID) {
                         confirmationMessage += `Write \`!changealliance\` to <@${BOT_ID}> in a Direct Message.\n\n`;
                     } else {
                         confirmationMessage += `Write \`!changealliance\` to the bot in a Direct Message.\n\n`;
                     }
                     
-                    confirmationMessage += `Enjoy your stay in the server! 👋`;
+                    confirmationMessage += `Enjoy your stay in the server!`;
                     
                     await message.author.send({
                         content: confirmationMessage
                     });
                     
-                    // LIMPIAR DATOS TEMPORALES
                     userData.delete(userId);
                     
-                    // ANUNCIAR EN BIENVENIDA (solo en servidor autorizado)
                     if (verificationResult) {
                         try {
                             const guild = client.guilds.cache.get(ALLOWED_GUILD_ID);
@@ -562,27 +508,24 @@ client.on('messageCreate', async (message) => {
                             );
                             if (welcomeChannel) {
                                 await welcomeChannel.send({
-                                    content: `🎉 <@${userId}> has completed verification and joined the **${userInfo.alliance}** alliance! Welcome! 👏`
+                                    content: `<@${userId}> has completed verification and joined the **${userInfo.alliance}** alliance! Welcome!`
                                 });
                             }
                         } catch (e) {
-                            // Ignorar
                         }
                     }
                 }
                 
-                // PROCESO DE CAMBIO DE ALIANZA
                 else if (userInfo.step === 'changing_alliance') {
                     const newAlliance = content.toUpperCase();
                     
                     if (!VALID_ALLIANCES.includes(newAlliance)) {
-                        await message.author.send('❌ **Invalid alliance!**\nType: FKIT, ISL, DNT, or TNT');
+                        await message.author.send('**Invalid alliance!**\nType: FKIT, ISL, DNT, or TNT');
                         return;
                     }
                     
-                    console.log(`\n🔄 ${userTag} changing alliance to: ${newAlliance}`);
+                    console.log(`\n${userTag} changing alliance to: ${newAlliance}`);
                     
-                    // ✨ NUEVO: Obtener datos completos del usuario
                     const userFullInfo = {
                         discordTag: userTag,
                         discordId: userId,
@@ -591,7 +534,6 @@ client.on('messageCreate', async (message) => {
                         nickname: userInfo.nickname || 'Not provided'
                     };
                     
-                    // Si tenemos datos almacenados permanentemente, usarlos
                     const storedData = registeredUsers.get(userId);
                     if (storedData) {
                         userFullInfo.gameId = storedData.gameId;
@@ -599,26 +541,22 @@ client.on('messageCreate', async (message) => {
                         console.log(`   Using stored data: Game ID: ${storedData.gameId}, Nickname: ${storedData.nickname}`);
                     }
                     
-                    // CAMBIAR ALIANZA (solo en servidor autorizado)
                     try {
                         const guild = client.guilds.cache.get(ALLOWED_GUILD_ID);
                         if (guild) {
                             const result = await changeUserAlliance(userId, newAlliance, guild);
                             
                             if (result && result.success) {
-                                // ✨ NUEVO: Actualizar datos almacenados permanentemente
                                 if (storedData) {
                                     storedData.alliance = newAlliance;
                                     storedData.updatedAt = new Date().toISOString();
                                     registeredUsers.set(userId, storedData);
-                                    console.log(`💾 Updated permanent storage for ${userTag}`);
+                                    console.log(`Updated permanent storage for ${userTag}`);
                                 }
                                 
-                                // Guardar en registros con datos completos
                                 await saveToRegistersChannel(guild, userFullInfo, 'ALLIANCE CHANGE');
                                 
-                                // Enviar confirmación
-                                let changeMessage = `✅ **ALLIANCE CHANGED SUCCESSFULLY!**\n\n`;
+                                let changeMessage = `**ALLIANCE CHANGED SUCCESSFULLY!**\n\n`;
                                 changeMessage += `**Your new alliance:** **${newAlliance}**\n\n`;
                                 
                                 if (result.removedRoles.length > 0) {
@@ -627,56 +565,51 @@ client.on('messageCreate', async (message) => {
                                 
                                 changeMessage += `**Added new role:** ${newAlliance}\n\n`;
                                 
-                                // ✨ NUEVO: Mostrar datos del juego en el mensaje de confirmación
                                 if (userFullInfo.gameId !== 'Not provided') {
-                                    changeMessage += `📋 **Your game data:**\n`;
+                                    changeMessage += `**Your game data:**\n`;
                                     changeMessage += `• Game ID: \`${userFullInfo.gameId}\`\n`;
                                     changeMessage += `• Nickname: \`${userFullInfo.nickname}\`\n\n`;
                                 }
                                 
                                 changeMessage += `The change has been recorded in the server logs.\n\n`;
                                 changeMessage += `You now have access to the ${newAlliance} alliance channels.\n\n`;
-                                changeMessage += `📢 **Remember:**\nRead <#${IMPORTANT_CHANNELS.ANNOUNCEMENTS}> for server updates.`;
+                                changeMessage += `**Remember:**\nRead <#${IMPORTANT_CHANNELS.ANNOUNCEMENTS}> for server updates.`;
                                 
                                 await message.author.send({
                                     content: changeMessage
                                 });
                                 
-                                console.log(`✅ Alliance changed for ${userTag}: ${result.removedRoles.join(', ')} ➔ ${newAlliance}`);
+                                console.log(`Alliance changed for ${userTag}: ${result.removedRoles.join(', ')} -> ${newAlliance}`);
                                 
-                                // Anunciar en bienvenida (opcional)
                                 try {
                                     const welcomeChannel = guild.channels.cache.find(ch => 
                                         ch.type === 0 && ch.name === '👋-welcome'
                                     );
                                     if (welcomeChannel) {
                                         await welcomeChannel.send({
-                                            content: `🔄 <@${userId}> has changed alliance to **${newAlliance}**!`
+                                            content: `<@${userId}> has changed alliance to **${newAlliance}**!`
                                         });
                                     }
                                 } catch (e) {
-                                    // Ignorar
                                 }
                                 
                             } else {
-                                await message.author.send('❌ **Error changing alliance!**\nPlease contact an administrator.');
+                                await message.author.send('**Error changing alliance!**\nPlease contact an administrator.');
                             }
                         } else {
-                            await message.author.send('❌ **Error:** Cannot find the server. Please contact an administrator.');
+                            await message.author.send('**Error:** Cannot find the server. Please contact an administrator.');
                         }
                     } catch (error) {
                         console.error('Error in alliance change:', error.message);
-                        await message.author.send('❌ **An error occurred!**\nPlease try again or contact an administrator.');
+                        await message.author.send('**An error occurred!**\nPlease try again or contact an administrator.');
                     }
                     
-                    // Limpiar datos temporales
                     userData.delete(userId);
                 }
                 
                 return;
             }
             
-            // MENSAJE NORMAL EN DM
             if (BOT_ID) {
                 await message.author.send({
                     content: `Available commands:\n\n` +
@@ -700,53 +633,47 @@ client.on('messageCreate', async (message) => {
     }
 });
 
-// === BLOQUEAR INVITACIONES A OTROS SERVIDORES ===
 client.on('guildCreate', async (guild) => {
-    console.log(`\n⚠️  Bot added to new server: ${guild.name} (ID: ${guild.id})`);
+    console.log(`\nBot added to new server: ${guild.name} (ID: ${guild.id})`);
     
     if (guild.id !== ALLOWED_GUILD_ID) {
-        console.log(`❌ UNAUTHORIZED SERVER: ${guild.name}`);
+        console.log(`UNAUTHORIZED SERVER: ${guild.name}`);
         console.log(`   Allowed server ID: ${ALLOWED_GUILD_ID}`);
         console.log(`   Attempting to leave unauthorized server...`);
         
         try {
-            // Enviar mensaje al dueño del servidor (opcional)
             const owner = await guild.fetchOwner();
             if (owner) {
                 try {
-                    await owner.send(`❌ **Bot Restricted**\n\nThis bot (${client.user.tag}) is restricted to a specific server and cannot be used in other servers.\n\nThe bot will now leave your server automatically.\n\nIf you believe this is an error, contact the bot owner.`);
+                    await owner.send(`**Bot Restricted**\n\nThis bot (${client.user.tag}) is restricted to a specific server and cannot be used in other servers.\n\nThe bot will now leave your server automatically.\n\nIf you believe this is an error, contact the bot owner.`);
                 } catch (dmError) {
-                    // Ignorar si no se puede enviar DM
                 }
             }
             
-            // Salir del servidor
             await guild.leave();
-            console.log(`✅ Successfully left unauthorized server: ${guild.name}`);
+            console.log(`Successfully left unauthorized server: ${guild.name}`);
             
         } catch (error) {
-            console.error(`❌ Failed to leave server ${guild.name}:`, error.message);
+            console.error(`Failed to leave server ${guild.name}:`, error.message);
         }
     } else {
-        console.log(`✅ Authorized server: ${guild.name}`);
-        console.log(`🤖 Bot will now work in: ${guild.name}`);
+        console.log(`Authorized server: ${guild.name}`);
+        console.log(`Bot will now work in: ${guild.name}`);
     }
 });
 
-// ERROR HANDLING
 client.on('error', error => console.error('Client error:', error));
 process.on('unhandledRejection', error => console.error('Unhandled rejection:', error));
 
-// START BOT
 if (!token) {
-    console.error('❌ No token found!');
+    console.error('No token found!');
     process.exit(1);
 }
 
 client.login(token)
-    .then(() => console.log('✅ Bot started successfully'))
+    .then(() => console.log('Bot started successfully'))
     .catch(error => {
-        console.error('❌ Login failed:', error.message);
+        console.error('Login failed:', error.message);
         process.exit(1);
     });
 [file content end]
